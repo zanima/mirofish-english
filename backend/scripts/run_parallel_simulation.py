@@ -981,12 +981,32 @@ def _get_comment_info(
     return None
 
 
+def resolve_simulation_llm_env() -> Tuple[str, str, str]:
+    """Resolve the primary simulation LLM settings with the same fallback order as backend config."""
+    llm_api_key = (
+        os.environ.get("SIMULATION_LLM_API_KEY")
+        or os.environ.get("GRAPHITI_API_KEY")
+        or os.environ.get("LLM_API_KEY", "")
+    )
+    llm_base_url = (
+        os.environ.get("SIMULATION_LLM_BASE_URL")
+        or os.environ.get("GRAPHITI_BASE_URL")
+        or os.environ.get("LLM_BASE_URL", "")
+    )
+    llm_model = (
+        os.environ.get("SIMULATION_LLM_MODEL_NAME")
+        or os.environ.get("GRAPHITI_MODEL_NAME")
+        or os.environ.get("LLM_MODEL_NAME", "")
+    )
+    return llm_api_key, llm_base_url, llm_model
+
+
 def create_model(config: Dict[str, Any], use_boost: bool = False):
     """
     创建LLM模型
     
     支持双 LLM 配置，用于并行模拟时提速：
-    - 通用配置：LLM_API_KEY, LLM_BASE_URL, LLM_MODEL_NAME
+    - 主配置：SIMULATION_LLM_* -> GRAPHITI_* -> LLM_*
     - 加速配置（可选）：LLM_BOOST_API_KEY, LLM_BOOST_BASE_URL, LLM_BOOST_MODEL_NAME
     
     如果配置了加速 LLM，并行模拟时可以让不同平台使用不同的 API 服务商，提高并发能力。
@@ -1006,14 +1026,13 @@ def create_model(config: Dict[str, Any], use_boost: bool = False):
         # 使用加速配置
         llm_api_key = boost_api_key
         llm_base_url = boost_base_url
-        llm_model = boost_model or os.environ.get("LLM_MODEL_NAME", "")
+        _, _, primary_model = resolve_simulation_llm_env()
+        llm_model = boost_model or primary_model
         config_label = "[加速LLM]"
     else:
-        # 使用通用配置
-        llm_api_key = os.environ.get("LLM_API_KEY", "")
-        llm_base_url = os.environ.get("LLM_BASE_URL", "")
-        llm_model = os.environ.get("LLM_MODEL_NAME", "")
-        config_label = "[通用LLM]"
+        # 使用主配置
+        llm_api_key, llm_base_url, llm_model = resolve_simulation_llm_env()
+        config_label = "[主LLM]"
     
     # 如果 .env 中没有模型名，则使用 config 作为备用
     if not llm_model:

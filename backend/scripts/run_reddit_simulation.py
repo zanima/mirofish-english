@@ -81,6 +81,26 @@ class MaxTokensWarningFilter(logging.Filter):
 logging.getLogger().addFilter(MaxTokensWarningFilter())
 
 
+def resolve_simulation_llm_env():
+    """Resolve simulation LLM settings with the same fallback order as backend config."""
+    llm_api_key = (
+        os.environ.get("SIMULATION_LLM_API_KEY")
+        or os.environ.get("GRAPHITI_API_KEY")
+        or os.environ.get("LLM_API_KEY", "")
+    )
+    llm_base_url = (
+        os.environ.get("SIMULATION_LLM_BASE_URL")
+        or os.environ.get("GRAPHITI_BASE_URL")
+        or os.environ.get("LLM_BASE_URL", "")
+    )
+    llm_model = (
+        os.environ.get("SIMULATION_LLM_MODEL_NAME")
+        or os.environ.get("GRAPHITI_MODEL_NAME")
+        or os.environ.get("LLM_MODEL_NAME", "")
+    )
+    return llm_api_key, llm_base_url, llm_model
+
+
 def setup_oasis_logging(log_dir: str):
     """配置 OASIS 的日志，使用固定名称的日志文件"""
     os.makedirs(log_dir, exist_ok=True)
@@ -436,14 +456,10 @@ class RedditSimulationRunner:
         创建LLM模型
         
         统一使用项目根目录 .env 文件中的配置（优先级最高）：
-        - LLM_API_KEY: API密钥
-        - LLM_BASE_URL: API基础URL
-        - LLM_MODEL_NAME: 模型名称
+        - SIMULATION_LLM_* -> GRAPHITI_* -> LLM_*
         """
-        # 优先从 .env 读取配置
-        llm_api_key = os.environ.get("LLM_API_KEY", "")
-        llm_base_url = os.environ.get("LLM_BASE_URL", "")
-        llm_model = os.environ.get("LLM_MODEL_NAME", "")
+        # 优先从仿真链路配置读取
+        llm_api_key, llm_base_url, llm_model = resolve_simulation_llm_env()
         
         # 如果 .env 中没有，则使用 config 作为备用
         if not llm_model:
@@ -766,4 +782,3 @@ if __name__ == "__main__":
         pass
     finally:
         print("模拟进程已退出")
-

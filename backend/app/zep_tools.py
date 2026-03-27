@@ -1262,7 +1262,6 @@ class ZepToolsService:
         from .simulation_runner import SimulationRunner
         
         logger.info(f"InterviewAgents In-depth Interview (Real API): {interview_requirement[:50]}...")
-        max_agents = max(1, min(max_agents, Config.REPORT_INTERVIEW_MAX_AGENTS))
         
         result = InterviewResult(
             interview_topic=interview_requirement,

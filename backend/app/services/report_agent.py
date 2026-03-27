@@ -963,7 +963,7 @@ class ReportAgent:
                 "description": TOOL_DESC_INTERVIEW_AGENTS,
                 "parameters": {
                     "interview_topic": "Interview topic or requirement description (e.g., 'Understand students' views on dormitory formaldehyde incident')",
-                    "max_agents": "Maximum number of agents to interview (optional, default 5, max 10)",
+                    "max_agents": f"Maximum number of agents to interview (optional, default {Config.REPORT_INTERVIEW_MAX_AGENTS}, max {Config.REPORT_INTERVIEW_MAX_AGENTS})",
                 }
             }
         }
@@ -1023,10 +1023,10 @@ class ReportAgent:
             elif tool_name == "interview_agents":
                 # Deep interview - call real OASIS interview API to get simulated Agent responses (dual platform)
                 interview_topic = parameters.get("interview_topic", parameters.get("query", ""))
-                max_agents = parameters.get("max_agents", 5)
+                max_agents = parameters.get("max_agents", Config.REPORT_INTERVIEW_MAX_AGENTS)
                 if isinstance(max_agents, str):
                     max_agents = int(max_agents)
-                max_agents = min(max_agents, 10)
+                max_agents = max(1, min(max_agents, Config.REPORT_INTERVIEW_MAX_AGENTS))
                 result = self.zep_tools.interview_agents(
                     simulation_id=self.simulation_id,
                     interview_requirement=interview_topic,
@@ -1351,25 +1351,15 @@ class ReportAgent:
                     f"LLM output both tool call and Final Answer (Round {conflict_retries} conflict)"
                 )
 
-                if conflict_retries <= 2:
-                    # First two times: discard this response, ask LLM to reply again
-                    messages.append({"role": "assistant", "content": response})
-                    messages.append({
-                        "role": "user",
-                        "content": (
-                            "[Format Error] You included both tool call and Final Answer in one reply, which is not allowed.\n"
-                            "Each reply can only do one of the following two things:\n"
-                            "- Call a tool (output a <tool_call> block, do not write Final Answer)\n"
-                            "- Output final content (start with 'Final Answer:', do not include <tool_call>)\n"
-                            "Please reply again, doing only one of them."
-                        ),
-                    })
-                    continue
-                else:
-                    # Third time: downgrade handling, truncate to first tool call, force execution
+                if tool_calls_count >= min_tool_calls:
                     logger.warning(
-                        f"Chapter {section.title}: continuous {conflict_retries} conflicts, "
-                        "downgrade to truncate and execute first tool call"
+                        f"Chapter {section.title}: tool budget already sufficient, preferring Final Answer over tool call"
+                    )
+                    has_tool_calls = False
+                    conflict_retries = 0
+                else:
+                    logger.warning(
+                        f"Chapter {section.title}: tool budget not yet sufficient, preferring first tool call over Final Answer"
                     )
                     first_tool_end = response.find('</tool_call>')
                     if first_tool_end != -1:
