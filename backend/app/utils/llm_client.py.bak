@@ -1,0 +1,201 @@
+"""
+LLM客户端封装
+统一使用OpenAI格式调用
+"""
+
+import json
+import re
+from typing import Optional, Dict, Any, List
+from openai import OpenAI
+
+from ..config import Config
+from ..utils.logger import get_logger
+
+
+logger = get_logger('mirofish.llm')
+
+
+class LLMClient:
+    """LLM客户端"""
+    
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        model: Optional[str] = None
+    ):
+        self.api_key = api_key or Config.LLM_API_KEY
+        self.base_url = base_url or Config.LLM_BASE_URL
+        self.model = model or Config.LLM_MODEL_NAME
+        
+        if not self.api_key:
+            raise ValueError("LLM_API_KEY 未配置")
+        
+        self.client = OpenAI(
+            api_key=self.api_key,
+            base_url=self.base_url
+        )
+    
+    def chat(
+        self,
+        messages: List[Dict[str, str]],
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+        response_format: Optional[Dict] = None
+    ) -> str:
+        """
+        发送聊天请求
+        
+        Args:
+            messages: 消息列表
+            temperature: 温度参数
+            max_tokens: 最大token数
+            response_format: 响应格式（如JSON模式）
+            
+        Returns:
+            模型响应文本
+        """
+        kwargs = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        
+        if response_format:
+            kwargs["response_format"] = response_format
+        
+        response = self.client.chat.completions.create(**kwargs)
+        content = response.choices[0].message.content
+        # 部分模型（如MiniMax M2.5）会在content中包含<think>思考内容，需要移除
+        content = re.sub(r'<think>[\s\S]*?</think>', '', content).strip()
+        return content
+    
+    def chat_json(
+        self,
+        messages: List[Dict[str, str]],
+        temperature: float = 0.3,
+        max_tokens: int = 4096
+    ) -> Dict[str, Any]:
+        """
+        发送聊天请求并返回JSON
+        
+        Args:
+            messages: 消息列表
+            temperature: 温度参数
+            max_tokens: 最大token数
+            
+        Returns:
+            解析后的JSON对象
+        """
+        response = self.chat(
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            response_format={"type": "json_object"}
+        )
+        cleaned_response = self._clean_json_text(response)
+        
+        if not cleaned_response:
+            raise ValueError("LLM在JSON模式下返回空内容")
+        
+        try:
+            return self._parse_json_response(response)
+        except ValueError as first_error:
+            logger.warning("LLM返回的JSON无法直接解析，尝试自动修复: %s", str(first_error))
+
+        repair_messages = [
+            {
+                "role": "system",
+                "content": (
+                    "你是一个JSON修复器。"
+                    "请把用户提供的内容修复为一个有效的JSON对象。"
+                    "只输出JSON对象，不要输出解释、Markdown、注释或额外文本。"
+                )
+            },
+            {
+                "role": "user",
+                "content": f"请将以下内容修复为有效JSON对象，只输出JSON：\n\n{cleaned_response}"
+            }
+        ]
+        
+        repaired_response = self.chat(
+            messages=repair_messages,
+            temperature=0,
+            max_tokens=max_tokens,
+            response_format={"type": "json_object"}
+        )
+        
+        try:
+            return self._parse_json_response(repaired_response)
+        except ValueError as repair_error:
+            logger.warning("JSON修复失败，重试原始请求一次: %s", str(repair_error))
+        
+        retry_response = self.chat(
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            response_format={"type": "json_object"}
+        )
+        return self._parse_json_response(retry_response)
+
+    def _parse_json_response(self, response: str) -> Dict[str, Any]:
+        """解析LLM返回的JSON文本，尽量容忍常见包装格式。"""
+        cleaned_response = self._clean_json_text(response)
+        
+        candidates = [cleaned_response]
+        extracted = self._extract_json_object(cleaned_response)
+        if extracted and extracted not in candidates:
+            candidates.append(extracted)
+        
+        for candidate in candidates:
+            try:
+                parsed = json.loads(candidate)
+                if not isinstance(parsed, dict):
+                    raise ValueError("LLM返回的JSON不是对象")
+                return parsed
+            except (json.JSONDecodeError, ValueError):
+                continue
+        
+        preview = cleaned_response[:1000]
+        raise ValueError(f"LLM返回的JSON格式无效: {preview}")
+
+    def _clean_json_text(self, response: str) -> str:
+        """清理常见的Markdown包装和前后噪音。"""
+        cleaned = (response or "").strip()
+        cleaned = re.sub(r'^```(?:json)?\s*\n?', '', cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r'\n?```\s*$', '', cleaned)
+        return cleaned.strip()
+
+    def _extract_json_object(self, text: str) -> Optional[str]:
+        """从混杂文本中提取第一个平衡的JSON对象。"""
+        start = text.find('{')
+        if start == -1:
+            return None
+        
+        depth = 0
+        in_string = False
+        escape = False
+        
+        for idx in range(start, len(text)):
+            ch = text[idx]
+            
+            if in_string:
+                if escape:
+                    escape = False
+                elif ch == '\\':
+                    escape = True
+                elif ch == '"':
+                    in_string = False
+                continue
+            
+            if ch == '"':
+                in_string = True
+            elif ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    return text[start:idx + 1]
+        
+        return None

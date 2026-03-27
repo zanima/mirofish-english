@@ -1,0 +1,1 @@
+Northlake University announces that starting next month, all dorm residents must return before 10:00 PM on weekdays. The school says this improves safety. Students argue it hurts clubs, part-time jobs, and personal freedom.
