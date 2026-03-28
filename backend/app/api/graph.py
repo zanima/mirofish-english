@@ -17,6 +17,7 @@ from ..utils.file_parser import FileParser
 from ..utils.logger import get_logger
 from ..models.task import TaskManager, TaskStatus
 from ..models.project import ProjectManager, ProjectStatus
+from ..services.web_fetcher import fetch_urls, search_and_fetch
 
 # Get logger
 logger = get_logger('mirofish.api')
@@ -163,47 +164,85 @@ def generate_ontology():
                 "error": "Please provide simulation requirement description (simulation_requirement)"
             }), 400
         
-        # Get uploaded files
+        # Get uploaded files (now optional if URLs or search query provided)
         uploaded_files = request.files.getlist('files')
-        if not uploaded_files or all(not f.filename for f in uploaded_files):
+        has_files = uploaded_files and any(f.filename for f in uploaded_files)
+
+        # URL and search inputs (sent as form fields)
+        urls_raw = request.form.get('urls', '')
+        search_query = request.form.get('search_query', '')
+
+        urls = [u.strip() for u in urls_raw.replace(',', '\n').split('\n') if u.strip()] if urls_raw else []
+
+        if not has_files and not urls and not search_query:
             return jsonify({
                 "success": False,
-                "error": "Please upload at least one document file"
+                "error": "Please provide at least one source: upload files, paste URLs, or enter a search query"
             }), 400
-        
+
         # Create project
         project = ProjectManager.create_project(name=project_name)
         project.simulation_requirement = simulation_requirement
         logger.info(f"Create project: {project.project_id}")
-        
-        # Save file and extract text
+
+        # Collect text from all sources
         document_texts = []
         all_text = ""
-        
-        for file in uploaded_files:
-            if file and file.filename and allowed_file(file.filename):
-                # Save file to project directory
-                file_info = ProjectManager.save_file_to_project(
-                    project.project_id, 
-                    file, 
-                    file.filename
-                )
-                project.files.append({
-                    "filename": file_info["original_filename"],
-                    "size": file_info["size"]
-                })
-                
-                # Extract text
-                text = FileParser.extract_text(file_info["path"])
-                text = TextProcessor.preprocess_text(text)
+
+        # Source 1: Uploaded files
+        if has_files:
+            for file in uploaded_files:
+                if file and file.filename and allowed_file(file.filename):
+                    file_info = ProjectManager.save_file_to_project(
+                        project.project_id,
+                        file,
+                        file.filename
+                    )
+                    project.files.append({
+                        "filename": file_info["original_filename"],
+                        "size": file_info["size"]
+                    })
+                    text = FileParser.extract_text(file_info["path"])
+                    text = TextProcessor.preprocess_text(text)
+                    document_texts.append(text)
+                    all_text += f"\n\n=== {file_info['original_filename']} ===\n{text}"
+
+        # Source 2: URLs
+        if urls:
+            logger.info(f"Fetching {len(urls)} URL(s)...")
+            url_results = fetch_urls(urls)
+            for r in url_results:
+                if r["text"] and not r["error"]:
+                    text = TextProcessor.preprocess_text(r["text"])
+                    document_texts.append(text)
+                    label = r["title"] or r["url"]
+                    all_text += f"\n\n=== [URL] {label} ===\n{text}"
+                    project.files.append({
+                        "filename": f"[URL] {label}",
+                        "size": len(r["text"])
+                    })
+                elif r["error"]:
+                    logger.warning(f"URL fetch failed: {r['url']} — {r['error']}")
+
+        # Source 3: Search query
+        if search_query:
+            logger.info(f"Searching: {search_query}")
+            search_results = search_and_fetch(search_query, max_results=5)
+            for r in search_results:
+                text = TextProcessor.preprocess_text(r["text"])
                 document_texts.append(text)
-                all_text += f"\n\n=== {file_info['original_filename']} ===\n{text}"
-        
+                label = r["title"] or r["url"]
+                all_text += f"\n\n=== [Search] {label} ===\n{text}"
+                project.files.append({
+                    "filename": f"[Search] {label}",
+                    "size": len(r["text"])
+                })
+
         if not document_texts:
             ProjectManager.delete_project(project.project_id)
             return jsonify({
                 "success": False,
-                "error": "No documents were successfully processed, please check the file format"
+                "error": "No content was successfully extracted from any source"
             }), 400
         
         # Save extracted text

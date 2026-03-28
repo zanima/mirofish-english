@@ -53,13 +53,26 @@
         <!-- Right: action console -->
         <div class="action-col">
           <div class="console-box">
-            <!-- Upload area -->
-            <div class="console-section">
+            <!-- Source tabs -->
+            <div class="source-tabs">
+              <button
+                v-for="tab in sourceTabs"
+                :key="tab.id"
+                class="source-tab"
+                :class="{ active: activeSource === tab.id }"
+                @click="activeSource = tab.id"
+              >
+                <span class="tab-icon">{{ tab.icon }}</span>
+                {{ tab.label }}
+              </button>
+            </div>
+
+            <!-- Source: Files -->
+            <div v-if="activeSource === 'files'" class="console-section">
               <div class="console-header">
-                <span class="console-label">01 / Seed Data</span>
+                <span class="console-label">Upload Files</span>
                 <span class="console-meta">PDF, MD, TXT</span>
               </div>
-
               <div
                 class="upload-zone"
                 :class="{ 'drag-over': isDragOver, 'has-files': files.length > 0 }"
@@ -77,13 +90,11 @@
                   style="display: none"
                   :disabled="loading"
                 />
-
                 <div v-if="files.length === 0" class="upload-placeholder">
                   <div class="upload-icon">↑</div>
                   <div class="upload-title">Drag & drop files here</div>
                   <div class="upload-hint">or click to browse</div>
                 </div>
-
                 <div v-else class="file-list">
                   <div v-for="(file, index) in files" :key="index" class="file-item">
                     <span class="file-icon">&#9634;</span>
@@ -94,13 +105,50 @@
               </div>
             </div>
 
+            <!-- Source: URL -->
+            <div v-else-if="activeSource === 'url'" class="console-section">
+              <div class="console-header">
+                <span class="console-label">Paste URLs</span>
+                <span class="console-meta">one per line</span>
+              </div>
+              <div class="input-wrapper">
+                <textarea
+                  v-model="urlsInput"
+                  class="code-input url-input"
+                  placeholder="https://en.wikipedia.org/wiki/...&#10;https://arxiv.org/abs/...&#10;https://news.example.com/article"
+                  rows="4"
+                  :disabled="loading"
+                ></textarea>
+              </div>
+              <div class="source-hint">Pages will be fetched and text extracted automatically</div>
+            </div>
+
+            <!-- Source: Search -->
+            <div v-else-if="activeSource === 'search'" class="console-section">
+              <div class="console-header">
+                <span class="console-label">Search the Web</span>
+                <span class="console-meta">top 5 results</span>
+              </div>
+              <div class="input-wrapper">
+                <input
+                  v-model="searchQuery"
+                  class="search-input"
+                  type="text"
+                  placeholder="e.g. Tesla stock prediction 2026 analysis"
+                  :disabled="loading"
+                  @keydown.enter.prevent
+                />
+              </div>
+              <div class="source-hint">Searches DuckDuckGo and extracts text from top results</div>
+            </div>
+
             <!-- Divider -->
             <div class="console-divider"><span>Prompt</span></div>
 
             <!-- Prompt area -->
             <div class="console-section">
               <div class="console-header">
-                <span class="console-label">>_ 02 / Simulation Prompt</span>
+                <span class="console-label">>_ Simulation Prompt</span>
               </div>
               <div class="input-wrapper">
                 <textarea
@@ -151,8 +199,22 @@ const loading = ref(false)
 const isDragOver = ref(false)
 const fileInput = ref(null)
 
+// Source tabs for seed data input
+const activeSource = ref('files')
+const sourceTabs = [
+  { id: 'files', icon: '↑', label: 'Files' },
+  { id: 'url', icon: '🔗', label: 'URL' },
+  { id: 'search', icon: '🔍', label: 'Search' }
+]
+const urlsInput = ref('')
+const searchQuery = ref('')
+
 const canSubmit = computed(() => {
-  return formData.value.simulationRequirement.trim() !== '' && files.value.length > 0
+  const hasPrompt = formData.value.simulationRequirement.trim() !== ''
+  const hasFiles = files.value.length > 0
+  const hasUrls = urlsInput.value.trim() !== ''
+  const hasSearch = searchQuery.value.trim() !== ''
+  return hasPrompt && (hasFiles || hasUrls || hasSearch)
 })
 
 const triggerFileInput = () => { if (!loading.value) fileInput.value?.click() }
@@ -173,7 +235,7 @@ const removeFile = (index) => { files.value.splice(index, 1) }
 const startSimulation = () => {
   if (!canSubmit.value || loading.value) return
   import('../store/pendingUpload.js').then(({ setPendingUpload }) => {
-    setPendingUpload(files.value, formData.value.simulationRequirement)
+    setPendingUpload(files.value, formData.value.simulationRequirement, urlsInput.value, searchQuery.value)
     router.push({ name: 'Process', params: { projectId: 'new' } })
   })
 }
@@ -398,6 +460,68 @@ const startSimulation = () => {
   margin-bottom: 9px;
   font-family: var(--font-mono);
   font-size: 0.7rem;
+  color: var(--fg-dim);
+}
+
+/* Source tabs */
+.source-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.source-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 0;
+  border: none;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--fg-dim);
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+  border-bottom: 2px solid transparent;
+}
+
+.source-tab:hover { color: var(--fg-muted); }
+
+.source-tab.active {
+  color: var(--orange);
+  border-bottom-color: var(--orange);
+}
+
+.tab-icon { font-size: 0.82rem; }
+
+.source-hint {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--fg-dim);
+  margin-top: 7px;
+  padding: 0 2px;
+}
+
+.url-input {
+  min-height: 90px;
+}
+
+.search-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 12px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  outline: none;
+  color: var(--fg);
+}
+
+.search-input::placeholder {
   color: var(--fg-dim);
 }
 
