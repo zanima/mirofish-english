@@ -17,9 +17,9 @@
     </nav>
 
     <div class="main-content">
-      <!-- Compact hero + action console side-by-side -->
+      <!-- Hero + action console side-by-side -->
       <section class="hero-action-row">
-        <!-- Left: compact hero -->
+        <!-- Left: hero -->
         <div class="hero-col">
           <div class="tag-row">
             <span class="orange-tag">Universal Swarm Intelligence Engine</span>
@@ -36,16 +36,21 @@
             and lets you rehearse the future in a digital sandbox.
           </p>
 
-          <!-- Compact workflow steps — horizontal pills -->
+          <!-- Workflow steps — horizontal pills -->
           <div class="workflow-pills">
             <div class="pill" v-for="(step, i) in steps" :key="i">
               <span class="pill-num">{{ String(i + 1).padStart(2, '0') }}</span>
               <span class="pill-label">{{ step }}</span>
             </div>
           </div>
+
+          <!-- Logo accent -->
+          <div class="logo-accent">
+            <img src="../assets/logo/MiroFish_logo_left.jpeg" alt="MiroFish" class="accent-logo" />
+          </div>
         </div>
 
-        <!-- Right: action console (upload + prompt + launch) -->
+        <!-- Right: action console -->
         <div class="action-col">
           <div class="console-box">
             <!-- Upload area -->
@@ -124,21 +129,6 @@
         </div>
       </section>
 
-      <!-- Logo strip -->
-      <div class="logo-strip">
-        <img src="../assets/logo/MiroFish_logo_left.jpeg" alt="MiroFish Logo" class="strip-logo" />
-        <div class="strip-stats">
-          <div class="stat-box">
-            <div class="stat-val">Low Cost</div>
-            <div class="stat-lbl">~$5 avg / sim</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-val">Scalable</div>
-            <div class="stat-lbl">Millions of Agents</div>
-          </div>
-        </div>
-      </div>
-
       <!-- Historical project database -->
       <HistoryDatabase />
     </div>
@@ -155,67 +145,31 @@ const router = useRouter()
 
 const steps = ['Graph Build', 'Env Setup', 'Simulation', 'Report', 'Interact']
 
-// Form data
-const formData = ref({
-  simulationRequirement: ''
-})
-
-// File list
+const formData = ref({ simulationRequirement: '' })
 const files = ref([])
-
-// Status
 const loading = ref(false)
 const isDragOver = ref(false)
-
-// File input reference
 const fileInput = ref(null)
 
-// Computed property: whether can submit
 const canSubmit = computed(() => {
   return formData.value.simulationRequirement.trim() !== '' && files.value.length > 0
 })
 
-// Trigger file selection
-const triggerFileInput = () => {
-  if (!loading.value) {
-    fileInput.value?.click()
-  }
-}
+const triggerFileInput = () => { if (!loading.value) fileInput.value?.click() }
 
-// Handle file selection
-const handleFileSelect = (event) => {
-  const selectedFiles = Array.from(event.target.files)
-  addFiles(selectedFiles)
-}
-
-// Handle drag-and-drop
-const handleDragOver = () => {
-  if (!loading.value) isDragOver.value = true
-}
-const handleDragLeave = () => {
-  isDragOver.value = false
-}
+const handleFileSelect = (event) => addFiles(Array.from(event.target.files))
+const handleDragOver = () => { if (!loading.value) isDragOver.value = true }
+const handleDragLeave = () => { isDragOver.value = false }
 const handleDrop = (e) => {
   isDragOver.value = false
-  if (loading.value) return
-  addFiles(Array.from(e.dataTransfer.files))
+  if (!loading.value) addFiles(Array.from(e.dataTransfer.files))
 }
 
-// Add files
 const addFiles = (newFiles) => {
-  const validFiles = newFiles.filter(file => {
-    const ext = file.name.split('.').pop().toLowerCase()
-    return ['pdf', 'md', 'txt'].includes(ext)
-  })
-  files.value.push(...validFiles)
+  files.value.push(...newFiles.filter(f => ['pdf', 'md', 'txt'].includes(f.name.split('.').pop().toLowerCase())))
 }
+const removeFile = (index) => { files.value.splice(index, 1) }
 
-// Remove file
-const removeFile = (index) => {
-  files.value.splice(index, 1)
-}
-
-// Start simulation
 const startSimulation = () => {
   if (!canSubmit.value || loading.value) return
   import('../store/pendingUpload.js').then(({ setPendingUpload }) => {
@@ -226,70 +180,81 @@ const startSimulation = () => {
 </script>
 
 <style scoped>
-:root {
-  --black: #000000;
-  --white: #FFFFFF;
+/* ── Dark-first theme with system-aware override ──────────── */
+.home-container {
+  --bg: #0d0d0d;
+  --bg-surface: #161616;
+  --bg-elevated: #1c1c1c;
+  --fg: #e8e8e8;
+  --fg-muted: #888;
+  --fg-dim: #555;
   --orange: #FF4500;
-  --gray-text: #666666;
-  --border: #E5E5E5;
+  --border: #2a2a2a;
+  --border-hover: #444;
   --font-mono: 'JetBrains Mono', monospace;
   --font-sans: 'Space Grotesk', 'Noto Sans SC', system-ui, sans-serif;
+
+  min-height: 100vh;
+  background: var(--bg);
+  font-family: var(--font-sans);
+  color: var(--fg);
 }
 
-.home-container {
-  min-height: 100vh;
-  background: var(--white);
-  font-family: var(--font-sans);
-  color: var(--black);
+/* Light mode override (follows system) */
+@media (prefers-color-scheme: light) {
+  .home-container {
+    --bg: #ffffff;
+    --bg-surface: #f7f7f7;
+    --bg-elevated: #ffffff;
+    --fg: #111111;
+    --fg-muted: #666666;
+    --fg-dim: #aaaaaa;
+    --border: #e0e0e0;
+    --border-hover: #999;
+  }
 }
 
 /* ── Navbar ───────────────────────────────────────────────── */
 .navbar {
-  height: 54px;
-  background: var(--black);
-  color: var(--white);
+  height: 50px;
+  background: #000;
+  color: #fff;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 32px;
+  padding: 0 28px;
+  border-bottom: 1px solid #1a1a1a;
 }
 
 .nav-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .nav-brand {
   font-family: var(--font-mono);
   font-weight: 800;
-  letter-spacing: 1px;
-  font-size: 1.1rem;
+  letter-spacing: 1.5px;
+  font-size: 1rem;
 }
 
 .nav-version {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: #666;
+  font-size: 0.65rem;
+  color: #444;
 }
 
-.nav-center {
-  display: flex;
-  align-items: center;
-}
-
-.nav-right {
-  display: flex;
-  align-items: center;
-}
+.nav-center { display: flex; align-items: center; }
+.nav-right { display: flex; align-items: center; }
 
 .github-link {
-  color: var(--white);
+  color: #fff;
   text-decoration: none;
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  opacity: 0.7;
+  opacity: 0.5;
   transition: opacity 0.2s;
 }
 .github-link:hover { opacity: 1; }
@@ -297,67 +262,64 @@ const startSimulation = () => {
 
 /* ── Main content ─────────────────────────────────────────── */
 .main-content {
-  max-width: 1320px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 48px 36px 36px;
+  padding: 44px 32px 32px;
 }
 
 /* ── Hero + Action row ────────────────────────────────────── */
 .hero-action-row {
   display: flex;
-  gap: 48px;
+  gap: 52px;
   align-items: flex-start;
-  margin-bottom: 48px;
+  margin-bottom: 52px;
 }
 
-/* Left: hero text */
 .hero-col {
   flex: 1;
   min-width: 0;
-  padding-top: 8px;
+  padding-top: 4px;
 }
 
-.tag-row {
-  margin-bottom: 18px;
-}
+.tag-row { margin-bottom: 16px; }
 
 .orange-tag {
   background: var(--orange);
-  color: var(--white);
+  color: #fff;
   padding: 3px 10px;
   font-family: var(--font-mono);
   font-weight: 700;
   letter-spacing: 0.5px;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   text-transform: uppercase;
 }
 
 .main-title {
-  font-size: 3.2rem;
-  line-height: 1.15;
+  font-size: 3rem;
+  line-height: 1.12;
   font-weight: 500;
-  margin: 0 0 22px 0;
+  margin: 0 0 20px 0;
   letter-spacing: -1.5px;
-  color: var(--black);
+  color: var(--fg);
 }
 
 .gradient-text {
-  background: linear-gradient(90deg, #000 0%, #555 100%);
+  background: linear-gradient(90deg, var(--fg) 0%, var(--fg-muted) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   display: inline-block;
 }
 
 .hero-desc {
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   line-height: 1.7;
-  color: var(--gray-text);
+  color: var(--fg-muted);
   margin-bottom: 28px;
-  max-width: 520px;
+  max-width: 500px;
 }
 
 .hero-desc strong {
-  color: var(--black);
+  color: var(--fg);
   font-weight: 700;
 }
 
@@ -365,14 +327,15 @@ const startSimulation = () => {
   color: var(--orange);
   font-weight: 600;
   font-family: var(--font-mono);
-  font-size: 0.9em;
+  font-size: 0.88em;
 }
 
-/* Workflow pills — compact horizontal steps */
+/* Workflow pills */
 .workflow-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 7px;
+  margin-bottom: 32px;
 }
 
 .pill {
@@ -380,130 +343,130 @@ const startSimulation = () => {
   align-items: center;
   gap: 6px;
   border: 1px solid var(--border);
-  padding: 6px 12px;
-  font-size: 0.78rem;
+  padding: 5px 11px;
+  font-size: 0.75rem;
   transition: border-color 0.2s;
 }
-
-.pill:hover {
-  border-color: #999;
-}
+.pill:hover { border-color: var(--border-hover); }
 
 .pill-num {
   font-family: var(--font-mono);
   font-weight: 700;
   color: var(--orange);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
 }
 
 .pill-label {
   font-weight: 500;
-  color: #444;
+  color: var(--fg-muted);
 }
 
-/* Right: action console */
+/* Logo accent */
+.logo-accent {
+  margin-top: 4px;
+}
+
+.accent-logo {
+  height: 52px;
+  opacity: 0.35;
+  transition: opacity 0.3s;
+  filter: grayscale(0.3);
+}
+.accent-logo:hover { opacity: 0.7; }
+
+/* ── Action console ───────────────────────────────────────── */
 .action-col {
   flex: 1;
-  min-width: 380px;
-  max-width: 520px;
+  min-width: 370px;
+  max-width: 500px;
 }
 
 .console-box {
-  border: 1px solid #CCC;
-  padding: 6px;
-  background: var(--white);
+  border: 1px solid var(--border);
+  padding: 5px;
+  background: var(--bg-surface);
 }
 
 .console-section {
-  padding: 16px 18px;
+  padding: 14px 16px;
 }
-
-.console-section.btn-section {
-  padding-top: 0;
-}
+.console-section.btn-section { padding-top: 0; }
 
 .console-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 9px;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: #777;
+  font-size: 0.7rem;
+  color: var(--fg-dim);
 }
 
 /* Upload zone */
 .upload-zone {
-  border: 1px dashed #CCC;
-  height: 130px;
+  border: 1px dashed var(--border);
+  height: 120px;
   overflow-y: auto;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.25s;
-  background: #FAFAFA;
+  background: var(--bg-elevated);
 }
-
-.upload-zone.has-files {
-  align-items: flex-start;
-}
-
+.upload-zone.has-files { align-items: flex-start; }
 .upload-zone:hover,
 .upload-zone.drag-over {
-  background: #F0F0F0;
+  background: var(--bg);
   border-color: var(--orange);
 }
 
-.upload-placeholder {
-  text-align: center;
-}
+.upload-placeholder { text-align: center; }
 
 .upload-icon {
-  width: 32px;
-  height: 32px;
-  border: 1px solid #DDD;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 10px;
-  color: #999;
-  font-size: 0.9rem;
+  margin: 0 auto 8px;
+  color: var(--fg-dim);
+  font-size: 0.85rem;
 }
 
 .upload-title {
   font-weight: 500;
-  font-size: 0.85rem;
-  margin-bottom: 3px;
+  font-size: 0.82rem;
+  margin-bottom: 2px;
+  color: var(--fg);
 }
 
 .upload-hint {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: #999;
+  font-size: 0.68rem;
+  color: var(--fg-dim);
 }
 
 .file-list {
   width: 100%;
-  padding: 10px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .file-item {
   display: flex;
   align-items: center;
-  background: var(--white);
-  padding: 6px 10px;
-  border: 1px solid #EEE;
+  background: var(--bg);
+  padding: 5px 9px;
+  border: 1px solid var(--border);
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
+  color: var(--fg);
 }
 
-.file-icon {
-  color: #999;
-  font-size: 0.85rem;
-}
+.file-icon { color: var(--fg-dim); font-size: 0.8rem; }
 
 .file-name {
   flex: 1;
@@ -517,8 +480,8 @@ const startSimulation = () => {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 1.1rem;
-  color: #999;
+  font-size: 1rem;
+  color: var(--fg-dim);
   padding: 0 2px;
 }
 .remove-btn:hover { color: var(--orange); }
@@ -527,53 +490,58 @@ const startSimulation = () => {
 .console-divider {
   display: flex;
   align-items: center;
-  margin: 4px 0;
+  margin: 3px 0;
 }
 .console-divider::before,
 .console-divider::after {
   content: '';
   flex: 1;
   height: 1px;
-  background: #EEE;
+  background: var(--border);
 }
 .console-divider span {
-  padding: 0 12px;
+  padding: 0 10px;
   font-family: var(--font-mono);
-  font-size: 0.65rem;
-  color: #BBB;
+  font-size: 0.6rem;
+  color: var(--fg-dim);
   letter-spacing: 1px;
   text-transform: uppercase;
 }
 
 /* Prompt input */
 .input-wrapper {
-  border: 1px solid #DDD;
-  background: #FAFAFA;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
 }
 
 .code-input {
   width: 100%;
   border: none;
   background: transparent;
-  padding: 14px 16px;
+  padding: 12px 14px;
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   line-height: 1.6;
   resize: vertical;
   outline: none;
-  min-height: 100px;
+  min-height: 90px;
+  color: var(--fg);
+}
+
+.code-input::placeholder {
+  color: var(--fg-dim);
 }
 
 /* Launch button */
 .start-engine-btn {
   width: 100%;
-  background: var(--black);
-  color: var(--white);
-  border: 1px solid var(--black);
-  padding: 16px 20px;
+  background: var(--orange);
+  color: #fff;
+  border: 1px solid var(--orange);
+  padding: 15px 18px;
   font-family: var(--font-mono);
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.95rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -584,12 +552,12 @@ const startSimulation = () => {
 }
 
 .start-engine-btn:not(:disabled) {
-  animation: pulse-border 2s infinite;
+  animation: pulse-glow 2.5s infinite;
 }
 
 .start-engine-btn:hover:not(:disabled) {
-  background: var(--orange);
-  border-color: var(--orange);
+  background: #e63e00;
+  border-color: #e63e00;
   transform: translateY(-1px);
 }
 
@@ -598,78 +566,22 @@ const startSimulation = () => {
 }
 
 .start-engine-btn:disabled {
-  background: #E5E5E5;
-  color: #999;
+  background: var(--bg-elevated);
+  color: var(--fg-dim);
   cursor: not-allowed;
-  border-color: #E5E5E5;
+  border-color: var(--border);
 }
 
-@keyframes pulse-border {
-  0% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.15); }
-  70% { box-shadow: 0 0 0 5px rgba(0, 0, 0, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
-}
-
-/* ── Logo strip ───────────────────────────────────────────── */
-.logo-strip {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  padding: 24px 0;
-  margin-bottom: 48px;
-}
-
-.strip-logo {
-  height: 64px;
-  opacity: 0.7;
-  transition: opacity 0.3s;
-}
-.strip-logo:hover { opacity: 1; }
-
-.strip-stats {
-  display: flex;
-  gap: 32px;
-}
-
-.stat-box {
-  text-align: right;
-}
-
-.stat-val {
-  font-family: var(--font-mono);
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.stat-lbl {
-  font-size: 0.75rem;
-  color: #999;
-  margin-top: 2px;
+@keyframes pulse-glow {
+  0% { box-shadow: 0 0 0 0 rgba(255, 69, 0, 0.3); }
+  70% { box-shadow: 0 0 0 8px rgba(255, 69, 0, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 69, 0, 0); }
 }
 
 /* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 900px) {
-  .hero-action-row {
-    flex-direction: column;
-  }
-  .action-col {
-    min-width: 100%;
-    max-width: 100%;
-  }
-  .main-title {
-    font-size: 2.4rem;
-  }
-  .logo-strip {
-    flex-direction: column;
-    gap: 16px;
-    align-items: flex-start;
-  }
-  .strip-stats {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .stat-box { text-align: left; }
+  .hero-action-row { flex-direction: column; }
+  .action-col { min-width: 100%; max-width: 100%; }
+  .main-title { font-size: 2.2rem; }
 }
 </style>
