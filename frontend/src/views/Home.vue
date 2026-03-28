@@ -180,7 +180,7 @@
                   rows="6"
                   :disabled="loading"
                 ></textarea>
-                <div class="model-badge">Engine: MiroFish-V1.0</div>
+                <ModelSelector />
               </div>
             </div>
 
@@ -210,6 +210,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import HistoryDatabase from '../components/HistoryDatabase.vue'
+import ModelSelector from '../components/ModelSelector.vue'
 
 const router = useRouter()
 
@@ -807,13 +808,26 @@ const startSimulation = () => {
   min-height: 150px;
 }
 
-.model-badge {
+.input-wrapper :deep(.model-selector) {
   position: absolute;
-  bottom: 10px;
-  right: 15px;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: #AAA;
+  bottom: 8px;
+  right: 10px;
+}
+
+.input-wrapper :deep(.model-badge-btn) {
+  color: #888;
+  border-color: #ddd;
+  font-size: 10px;
+  padding: 3px 8px;
+}
+
+.input-wrapper :deep(.model-badge-btn:hover) {
+  border-color: var(--orange);
+  color: #333;
+}
+
+.input-wrapper :deep(.dropdown-panel) {
+  color: #fff;
 }
 
 .start-engine-btn {

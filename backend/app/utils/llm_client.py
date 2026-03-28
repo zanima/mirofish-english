@@ -33,15 +33,22 @@ class LLMClient:
         self.base_url = base_url or Config.LLM_BASE_URL
         self.model = model or Config.LLM_MODEL_NAME
         self.timeout = timeout
-        
+
         if not self.api_key:
             raise ValueError("LLM_API_KEY not configured")
-        
+
         self.client = OpenAI(
             api_key=self.api_key,
             base_url=self.base_url,
             timeout=self.timeout,
         )
+
+    @classmethod
+    def from_active_model(cls, timeout: Optional[float] = None) -> "LLMClient":
+        """Create an LLMClient using the currently active model from ModelRegistry."""
+        from ..services.model_registry import ModelRegistry
+        sel = ModelRegistry().get_active()
+        return cls(api_key=sel.api_key, base_url=sel.base_url, model=sel.model_name, timeout=timeout)
     
     def chat(
         self,

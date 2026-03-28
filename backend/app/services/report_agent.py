@@ -909,10 +909,7 @@ class ReportAgent:
         self.simulation_requirement = simulation_requirement
         self.output_language = self._infer_output_language(simulation_requirement)
 
-        self.llm = llm_client or LLMClient(
-            api_key=Config.REPORT_LLM_API_KEY,
-            base_url=Config.REPORT_LLM_BASE_URL,
-            model=Config.REPORT_LLM_MODEL_NAME,
+        self.llm = llm_client or LLMClient.from_active_model(
             timeout=Config.REPORT_LLM_TIMEOUT_SECONDS,
         )
         self.zep_tools = zep_tools or ZepToolsService(llm_client=self.llm)

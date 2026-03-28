@@ -21,6 +21,8 @@
       </div>
 
       <div class="header-right">
+        <ModelSelector />
+        <div class="step-divider"></div>
         <div class="workflow-step">
           <span class="step-num">Step 4/5</span>
           <span class="step-name">Report</span>
@@ -65,6 +67,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import GraphPanel from '../components/GraphPanel.vue'
+import ModelSelector from '../components/ModelSelector.vue'
 import Step4Report from '../components/Step4Report.vue'
 import { getProject, getGraphData } from '../api/graph'
 import { getSimulation } from '../api/simulation'

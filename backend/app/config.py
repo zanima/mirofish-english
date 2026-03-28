@@ -47,6 +47,14 @@ class Config:
     REPORT_INTERVIEW_MAX_AGENTS = int(os.environ.get('REPORT_INTERVIEW_MAX_AGENTS', '3'))
     REPORT_INTERVIEW_TIMEOUT_SECONDS = int(os.environ.get('REPORT_INTERVIEW_TIMEOUT_SECONDS', '420'))
     
+    # Cloud LLM provider API keys (for model selector)
+    NVIDIA_API_KEY = os.environ.get('NVIDIA_API_KEY')
+    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+    ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
+    GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
+    DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
+    KIMI_API_KEY = os.environ.get('KIMI_API_KEY')
+
     # Zep configuration
     ZEP_API_KEY = os.environ.get('ZEP_API_KEY')
     

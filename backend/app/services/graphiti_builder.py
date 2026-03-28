@@ -328,6 +328,13 @@ class TolerantOpenAIClient(LLMClient):
         raise last_error or Exception("Max retries exceeded with no specific error")
 
 
+def _get_graphiti_llm_config():
+    """Resolve Graphiti LLM config from the active ModelRegistry selection."""
+    from .model_registry import ModelRegistry
+    sel = ModelRegistry().get_active()
+    return sel.base_url, sel.api_key, sel.model_name
+
+
 def _make_graphiti():
     """Create a configured graphiti_core.Graphiti instance."""
     from graphiti_core import Graphiti
@@ -335,11 +342,12 @@ def _make_graphiti():
     from graphiti_core.embedder.openai import OpenAIEmbedder, OpenAIEmbedderConfig
     from graphiti_core.cross_encoder.openai_reranker_client import OpenAIRerankerClient
 
+    _base_url, _api_key, _model = _get_graphiti_llm_config()
     llm_config = LLMConfig(
-        api_key=GRAPHITI_API_KEY,
-        base_url=GRAPHITI_BASE_URL,
-        model=GRAPHITI_MODEL,
-        small_model=GRAPHITI_MODEL,
+        api_key=_api_key,
+        base_url=_base_url,
+        model=_model,
+        small_model=_model,
     )
     llm = TolerantOpenAIClient(config=llm_config)
     embedder = OpenAIEmbedder(config=OpenAIEmbedderConfig(
@@ -427,9 +435,10 @@ class GraphitiBuilderService:
                     timeout=GRAPHITI_INIT_TIMEOUT_SECONDS,
                 )
             except asyncio.TimeoutError as exc:
+                _bu, _ak, _mn = _get_graphiti_llm_config()
                 raise RuntimeError(
                     f"Graphiti initialization timed out after {GRAPHITI_INIT_TIMEOUT_SECONDS}s "
-                    f"(model={GRAPHITI_MODEL}, base_url={GRAPHITI_BASE_URL})"
+                    f"(model={_mn}, base_url={_bu})"
                 ) from exc
             total = len(chunks)
             now = datetime.now(timezone.utc)
@@ -455,7 +464,7 @@ class GraphitiBuilderService:
                     raise RuntimeError(
                         f"Chunk {i + 1}/{total} timed out after "
                         f"{GRAPHITI_EPISODE_TIMEOUT_SECONDS}s "
-                        f"(model={GRAPHITI_MODEL}, base_url={GRAPHITI_BASE_URL})"
+                        f"(model={_get_graphiti_llm_config()[2]}, base_url={_get_graphiti_llm_config()[0]})"
                     ) from exc
                 logger.info(f"[{graph_id}] Episode {i + 1}/{total} ingested")
         finally:

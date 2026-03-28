@@ -431,6 +431,13 @@ class SimulationRunner:
             env = os.environ.copy()
             env['PYTHONUTF8'] = '1'  # Python 3.7+ support, make all open() default to UTF-8
             env['PYTHONIOENCODING'] = 'utf-8'  # ensure stdout/stderr use UTF-8
+
+            # Inject the active model selection into the subprocess environment
+            from .model_registry import ModelRegistry
+            _sel = ModelRegistry().get_active()
+            env['LLM_API_KEY'] = _sel.api_key
+            env['LLM_BASE_URL'] = _sel.base_url
+            env['LLM_MODEL_NAME'] = _sel.model_name
             
             # Set working directory to simulation directory (database and other files will be generated here)
             # Use start_new_session=True to create a new process group, ensuring all child processes can be terminated via os.killpg

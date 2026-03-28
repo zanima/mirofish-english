@@ -162,7 +162,7 @@ class OntologyGenerator:
     """
     
     def __init__(self, llm_client: Optional[LLMClient] = None):
-        self.llm_client = llm_client or LLMClient()
+        self.llm_client = llm_client or LLMClient.from_active_model()
         self.logger = get_logger('mirofish.ontology')
     
     def generate(
