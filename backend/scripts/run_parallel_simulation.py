@@ -1001,6 +1001,32 @@ def resolve_simulation_llm_env() -> Tuple[str, str, str]:
     return llm_api_key, llm_base_url, llm_model
 
 
+def resolve_simulation_llm_runtime() -> Tuple[float, int]:
+    """Resolve runtime safeguards for the simulation LLM path."""
+    timeout_raw = (
+        os.environ.get("SIMULATION_LLM_TIMEOUT_SECONDS")
+        or os.environ.get("MODEL_TIMEOUT")
+        or "90"
+    )
+    retries_raw = (
+        os.environ.get("SIMULATION_LLM_MAX_RETRIES")
+        or os.environ.get("MODEL_MAX_RETRIES")
+        or "1"
+    )
+
+    try:
+        timeout_seconds = max(float(timeout_raw), 1.0)
+    except (TypeError, ValueError):
+        timeout_seconds = 90.0
+
+    try:
+        max_retries = max(int(retries_raw), 0)
+    except (TypeError, ValueError):
+        max_retries = 1
+
+    return timeout_seconds, max_retries
+
+
 def create_model(config: Dict[str, Any], use_boost: bool = False):
     """
     创建LLM模型
@@ -1047,12 +1073,20 @@ def create_model(config: Dict[str, Any], use_boost: bool = False):
     
     if llm_base_url:
         os.environ["OPENAI_API_BASE_URL"] = llm_base_url
-    
-    print(f"{config_label} model={llm_model}, base_url={llm_base_url[:40] if llm_base_url else '默认'}...")
+
+    timeout_seconds, max_retries = resolve_simulation_llm_runtime()
+
+    print(
+        f"{config_label} model={llm_model}, "
+        f"base_url={llm_base_url[:40] if llm_base_url else '默认'}..., "
+        f"timeout={timeout_seconds}s, retries={max_retries}"
+    )
     
     return ModelFactory.create(
         model_platform=ModelPlatformType.OPENAI,
         model_type=llm_model,
+        timeout=timeout_seconds,
+        max_retries=max_retries,
     )
 
 

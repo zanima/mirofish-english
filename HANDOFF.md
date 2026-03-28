@@ -1,6 +1,6 @@
 # MiroFish Handoff
 **Date:** 2026-03-27  
-**Status:** Local Graphiti graph build, simulation preparation, simulation runtime, and report generation are all running on `192.168.1.173`. After a controlled local benchmark on `2026-03-27`, the stack remains intentionally unified around `qwen2.5:14b` as the safe full-stack default, with `gemma3:12b-it-qat` kept as the main alternate candidate.
+**Status:** Local Graphiti graph build, simulation preparation, simulation runtime, and report generation are all running on `192.168.1.173`. After a controlled local benchmark on `2026-03-27`, the stack remains intentionally unified around `qwen2.5:14b` as the safe full-stack default. As of the latest verified restart, both frontend and backend were restarted cleanly on the Mac Studio, and only `qwen2.5:14b` was warmed into Ollama RAM.
 
 ## Current Runtime State
 - Remote host: `192.168.1.173`
@@ -11,6 +11,10 @@
   - `qwen2.5:14b`
   - `gemma3:12b-it-qat`
   - `nomic-embed-text:latest`
+  - `gpt-oss:20b`
+- Current verified live Ollama RAM state after restart:
+  - before warm-up: no models loaded (`ollama ps` empty)
+  - after warm-up: only `qwen2.5:14b` loaded
 - Current preparation state:
   - `status: ready`
   - `progress: 100`
@@ -181,10 +185,15 @@ For `sim_7b58160805f4`:
 - `gemma3:12b-it-qat` was the fastest report-stage performer in the controlled benchmark
 - report generation still spends most of its time inside interview batches when it decides to call that tool
 - the current code now limits those report interviews to `3` agents instead of allowing `5`
+- the old report page can still show `Generating` for a dead report if its saved metadata stayed at `planning`
 
 ### UI caveat
 - after backend restarts, the frontend may temporarily display stale step or report state
 - the reliable source of truth is the backend API plus remote logs
+- verified example:
+  - `report_f405b70e7103` is not actually running
+  - `GET /api/report/report_f405b70e7103` still returns `status: planning`
+  - this stale saved record is why the frontend can keep showing it as loading after a restart
 
 ## Files Changed In This Session
 - [backend/app/config.py](/Volumes/asfoora/MiroFish/backend/app/config.py)
@@ -211,6 +220,7 @@ Important current behavior:
   - `LLM_MODEL_NAME=qwen2.5:14b`
   - `GRAPHITI_MODEL_NAME=`
 - runtime simulation, simulation prep, graph build, and report generation all fall back to the same primary model path
+- the old `qwen3.5:4b` confusion was a stale `.env` comment / prior temporary benchmark setting, not the final active configuration
 - do not switch back to `qwen3.5:9b` unless it is re-benchmarked and proven on graph + report, which it was not in this session
 - do not switch the main stack to `gemma3:12b-it-qat` until it is also re-tested on a full Graphiti graph build
 - report interviews are currently tuned to:
@@ -258,6 +268,14 @@ ssh asfoora@192.168.1.173
 tail -n 120 /Users/asfoora/MiroFish/backend/uploads/reports/<report_id>/console_log.txt
 ```
 
+### Verify selected model and warm state on the Mac Studio
+```sh
+ssh asfoora@192.168.1.173
+cd /Users/asfoora/MiroFish
+docker exec mirofish /bin/sh -lc 'env | sort | egrep "^(LLM_MODEL_NAME|GRAPHITI_MODEL_NAME)"'
+ollama ps
+```
+
 ## Recommended Next Work
 - fix frontend recovery so report/simulation views reattach more cleanly after backend restarts
 - if needed, make the report interview tool cheaper still:
@@ -278,3 +296,4 @@ Local git backup repo:
 Recent backup commits created in this session:
 - `08bccb7`
 - `d1cd63a`
+- `5347c76`

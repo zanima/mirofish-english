@@ -101,6 +101,32 @@ def resolve_simulation_llm_env():
     return llm_api_key, llm_base_url, llm_model
 
 
+def resolve_simulation_llm_runtime():
+    """Resolve runtime safeguards for the simulation LLM path."""
+    timeout_raw = (
+        os.environ.get("SIMULATION_LLM_TIMEOUT_SECONDS")
+        or os.environ.get("MODEL_TIMEOUT")
+        or "90"
+    )
+    retries_raw = (
+        os.environ.get("SIMULATION_LLM_MAX_RETRIES")
+        or os.environ.get("MODEL_MAX_RETRIES")
+        or "1"
+    )
+
+    try:
+        timeout_seconds = max(float(timeout_raw), 1.0)
+    except (TypeError, ValueError):
+        timeout_seconds = 90.0
+
+    try:
+        max_retries = max(int(retries_raw), 0)
+    except (TypeError, ValueError):
+        max_retries = 1
+
+    return timeout_seconds, max_retries
+
+
 def setup_oasis_logging(log_dir: str):
     """配置 OASIS 的日志，使用固定名称的日志文件"""
     os.makedirs(log_dir, exist_ok=True)
@@ -467,12 +493,20 @@ class TwitterSimulationRunner:
         
         if llm_base_url:
             os.environ["OPENAI_API_BASE_URL"] = llm_base_url
-        
-        print(f"LLM配置: model={llm_model}, base_url={llm_base_url[:40] if llm_base_url else '默认'}...")
+
+        timeout_seconds, max_retries = resolve_simulation_llm_runtime()
+
+        print(
+            f"LLM配置: model={llm_model}, "
+            f"base_url={llm_base_url[:40] if llm_base_url else '默认'}..., "
+            f"timeout={timeout_seconds}s, retries={max_retries}"
+        )
         
         return ModelFactory.create(
             model_platform=ModelPlatformType.OPENAI,
             model_type=llm_model,
+            timeout=timeout_seconds,
+            max_retries=max_retries,
         )
     
     def _get_active_agents_for_round(
