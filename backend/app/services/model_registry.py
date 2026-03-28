@@ -37,7 +37,7 @@ PROVIDER_CATALOG: Dict[str, Dict[str, Any]] = {
     "ollama": {
         "name": "Ollama (Local)",
         "type": "local",
-        "base_url": "http://localhost:11434/v1",
+        "base_url": "http://host.docker.internal:11434/v1",
         "default_key": "ollama",
         "env_key": None,
         "models": [],  # auto-discovered
@@ -49,6 +49,7 @@ PROVIDER_CATALOG: Dict[str, Dict[str, Any]] = {
         "default_key": None,
         "env_key": "NVIDIA_API_KEY",
         "models": [
+            {"id": "openai/gpt-oss-120b", "name": "GPT-OSS 120B"},
             {"id": "nvidia/llama-3.1-nemotron-ultra-253b-v1", "name": "Nemotron Ultra 253B"},
             {"id": "meta/llama-3.3-70b-instruct", "name": "Llama 3.3 70B"},
             {"id": "deepseek-ai/deepseek-r1", "name": "DeepSeek R1 (via NVIDIA)"},
@@ -70,13 +71,14 @@ PROVIDER_CATALOG: Dict[str, Dict[str, Any]] = {
     "anthropic": {
         "name": "Anthropic",
         "type": "cloud",
-        "base_url": "https://api.anthropic.com/v1",
+        "base_url": "https://api.anthropic.com/v1/",
         "default_key": None,
         "env_key": "ANTHROPIC_API_KEY",
         "models": [
             {"id": "claude-sonnet-4-20250514", "name": "Claude Sonnet 4"},
             {"id": "claude-haiku-4-5-20251001", "name": "Claude Haiku 4.5"},
         ],
+        "note": "Anthropic API requires x-api-key header; openai SDK may need compatibility layer",
     },
     "google": {
         "name": "Google Gemini",
@@ -108,6 +110,7 @@ PROVIDER_CATALOG: Dict[str, Dict[str, Any]] = {
         "env_key": "KIMI_API_KEY",
         "models": [
             {"id": "kimi-k2-0711", "name": "Kimi K2"},
+            {"id": "moonshot-v1-auto", "name": "Kimi K2.5 (Auto)"},
         ],
     },
 }
