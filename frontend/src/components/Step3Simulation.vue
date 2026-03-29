@@ -692,9 +692,34 @@ watch(() => props.systemLogs?.length, () => {
   })
 })
 
-onMounted(() => {
+onMounted(async () => {
   addLog('Step3 simulation run initialized')
   if (props.simulationId) {
+    // Check if a simulation is already running before starting a new one
+    try {
+      await fetchRunStatus()
+
+      // If already running, skip start and just attach to polling
+      if (runStatus.value?.runner_status === 'running') {
+        addLog('✓ Attached to existing running simulation')
+        phase.value = 1
+        startStatusPolling()
+        startDetailPolling()
+        return
+      }
+
+      // If already completed, show completion state
+      if (runStatus.value?.runner_status === 'completed') {
+        addLog('✓ Simulation already completed')
+        phase.value = 2
+        return
+      }
+    } catch (err) {
+      // Ignore status check errors, proceed with start
+      console.debug('Could not check existing status:', err)
+    }
+
+    // Otherwise, start a new simulation
     doStartSimulation()
   }
 })

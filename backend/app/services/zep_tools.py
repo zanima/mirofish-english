@@ -1294,12 +1294,14 @@ class ZepToolsService:
         
         # Step 3: Generate interview questions (if not provided)
         if not result.interview_questions:
-            result.interview_questions = self._generate_interview_questions(
+            generated_questions = self._generate_interview_questions(
                 interview_requirement=interview_requirement,
                 simulation_requirement=simulation_requirement,
                 selected_agents=selected_agents
             )
-            logger.info(f"Generated {len(result.interview_questions)} interview questions")
+            # Limit to configured max questions
+            result.interview_questions = generated_questions[:Config.REPORT_INTERVIEW_MAX_QUESTIONS]
+            logger.info(f"Generated {len(generated_questions)} interview questions, limited to {len(result.interview_questions)}")
         
         # Combine questions into a single interview prompt
         combined_prompt = "\n".join([f"{i+1}. {q}" for i, q in enumerate(result.interview_questions)])
@@ -1329,13 +1331,16 @@ class ZepToolsService:
                     # No platform specified, API will interview on both Twitter and Reddit
                 })
             
-            logger.info(f"Called batch interview API (dual-platform): {len(interviews_request)} Agents")
-            
-            # Call SimulationRunner's batch interview method (no platform passed, dual-platform interview)
+            # Determine platform mode: single-platform or dual-platform based on config
+            platform_mode = Config.REPORT_INTERVIEW_PLATFORM if Config.REPORT_INTERVIEW_PLATFORM != 'both' else None
+            platform_label = f"{platform_mode}-only" if platform_mode else "dual-platform"
+            logger.info(f"Called batch interview API ({platform_label}): {len(interviews_request)} Agents")
+
+            # Call SimulationRunner's batch interview method with configured platform
             api_result = SimulationRunner.interview_agents_batch(
                 simulation_id=simulation_id,
                 interviews=interviews_request,
-                platform=None,  # no platform specified, dual-platform interview
+                platform=platform_mode,  # 'reddit', 'twitter', or None for dual-platform
                 timeout=Config.REPORT_INTERVIEW_TIMEOUT_SECONDS
             )
             
@@ -1387,7 +1392,7 @@ class ZepToolsService:
                 clean_text = re.sub(r'【[^】]+】', '', clean_text)
 
                 # Strategy 1 (primary): extract complete sentences with substantial content
-                sentences = re.split(r'[。！？]', clean_text)
+                sentences = re.split(r'[。！？.!?]', clean_text)
                 meaningful = [
                     s.strip() for s in sentences
                     if 20 <= len(s.strip()) <= 150

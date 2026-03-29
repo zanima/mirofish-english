@@ -85,6 +85,15 @@
               {{ modelState.testResult.error || 'Failed' }}
             </template>
           </div>
+
+          <!-- Model performance stats -->
+          <div v-if="modelStats[modelState.active.model_name]" class="model-stats">
+            <div class="stat-label">Performance:</div>
+            <div class="stat-value">
+              {{ modelStats[modelState.active.model_name].calls }} calls,
+              {{ modelStats[modelState.active.model_name].avg_latency_ms }}ms avg
+            </div>
+          </div>
         </div>
       </template>
 
@@ -141,12 +150,13 @@ import {
   selectModel,
   testConnection,
 } from '../store/modelStore'
-import { getStepOverrides, setStepOverride, clearStepOverride, estimateCost } from '../api/models'
+import { getStepOverrides, setStepOverride, clearStepOverride, estimateCost, getModelStats } from '../api/models'
 
 const isOpen = ref(false)
 const testingModel = ref(null)
 const activeTab = ref('global')
 const costCache = reactive({})
+const modelStats = reactive({})
 
 const stepOverrides = reactive({
   steps: ['ontology', 'graph', 'simulation', 'report', 'interaction'],
@@ -174,9 +184,10 @@ function toggleOpen() {
   if (isOpen.value && modelState.providers.length === 0) {
     fetchModels()
   }
-  // Pre-fetch cost estimates for all models
+  // Pre-fetch cost estimates and stats for all models
   if (isOpen.value) {
     fetchAllCosts()
+    fetchModelStats()
   }
 }
 
@@ -191,6 +202,13 @@ async function fetchAllCosts() {
       } catch { /* ignore */ }
     }
   }
+}
+
+async function fetchModelStats() {
+  try {
+    const res = await getModelStats()
+    Object.assign(modelStats, res.data)
+  } catch { /* ignore */ }
 }
 
 function formatCost(data) {
@@ -521,6 +539,25 @@ onMounted(() => {
 
 .test-result.ok { color: #4CAF50; }
 .test-result.error { color: #F44336; }
+
+.model-stats {
+  font-size: 9px;
+  color: #666;
+  padding-top: 4px;
+  border-top: 1px solid #333;
+  margin-top: 4px;
+}
+
+.stat-label {
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  color: #777;
+  margin-top: 2px;
+}
 
 .dropdown-error {
   padding: 8px 12px;

@@ -183,6 +183,10 @@ class ModelRegistry:
 
         # Per-step overrides: {"ontology": ModelSelection, "report": ModelSelection, ...}
         self._step_overrides: Dict[str, ModelSelection] = {}
+
+        # Usage statistics tracking: {model_name: {calls, total_latency_ms, total_prompt_tokens, total_completion_tokens}}
+        self._usage_stats: Dict[str, Dict[str, Any]] = {}
+
         self._seed_env_step_defaults()
 
     # ── public API ───────────────────────────────────────────────────────
@@ -251,6 +255,48 @@ class ModelRegistry:
             "is_free": total == 0,
             "pricing_per_1m": pricing,
         }
+
+    # ── usage tracking ───────────────────────────────────────────────────
+
+    def record_usage(self, model: str, latency_ms: float, prompt_tokens: int = 0, completion_tokens: int = 0) -> None:
+        """Record LLM usage statistics for a given model."""
+        with self._active_lock:
+            if model not in self._usage_stats:
+                self._usage_stats[model] = {
+                    "calls": 0,
+                    "total_latency_ms": 0,
+                    "total_prompt_tokens": 0,
+                    "total_completion_tokens": 0,
+                    "total_tokens": 0,
+                }
+            stats = self._usage_stats[model]
+            stats["calls"] += 1
+            stats["total_latency_ms"] += latency_ms
+            stats["total_prompt_tokens"] += prompt_tokens
+            stats["total_completion_tokens"] += completion_tokens
+            stats["total_tokens"] = stats["total_prompt_tokens"] + stats["total_completion_tokens"]
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Return accumulated usage statistics for all models."""
+        with self._active_lock:
+            result = {}
+            for model, stats in self._usage_stats.items():
+                calls = stats["calls"]
+                avg_latency_ms = round(stats["total_latency_ms"] / calls, 2) if calls > 0 else 0
+                result[model] = {
+                    "calls": calls,
+                    "avg_latency_ms": avg_latency_ms,
+                    "total_latency_ms": round(stats["total_latency_ms"], 2),
+                    "total_prompt_tokens": stats["total_prompt_tokens"],
+                    "total_completion_tokens": stats["total_completion_tokens"],
+                    "total_tokens": stats["total_tokens"],
+                }
+            return result
+
+    def reset_stats(self) -> None:
+        """Reset all usage statistics."""
+        with self._active_lock:
+            self._usage_stats.clear()
 
     # ── provider helpers ─────────────────────────────────────────────────
 

@@ -401,7 +401,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, h, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { getAgentLog, getConsoleLog, cancelReport } from '../api/report'
+import { getAgentLog, getConsoleLog, cancelReport, getReportStatus } from '../api/report'
 
 const router = useRouter()
 
@@ -2042,6 +2042,8 @@ const getLogLevelClass = (log) => {
 // Polling
 let agentLogTimer = null
 let consoleLogTimer = null
+let agentLogErrorCount = 0
+let consoleLogErrorCount = 0
 
 const fetchAgentLog = async () => {
   if (!props.reportId) return
@@ -2100,9 +2102,15 @@ const fetchAgentLog = async () => {
           }
         })
       }
+      agentLogErrorCount = 0  // Reset error counter on success
     }
   } catch (err) {
-    console.warn('Failed to fetch agent log:', err)
+    agentLogErrorCount += 1
+    if (agentLogErrorCount >= 3) {
+      addLog(`⚠ Backend connection issue (agent log fetch failed ${agentLogErrorCount}x). Retrying...`)
+    } else {
+      console.warn('Failed to fetch agent log:', err)
+    }
   }
 }
 
@@ -2198,9 +2206,33 @@ const stopPolling = () => {
 }
 
 // Lifecycle
-onMounted(() => {
+onMounted(async () => {
   if (props.reportId) {
     addLog(`Report Agent initialized: ${props.reportId}`)
+
+    // Check report status first to recover state after backend restart
+    try {
+      const statusRes = await getReportStatus(props.reportId)
+      const status = statusRes.data?.status
+
+      if (status === 'completed') {
+        addLog('✓ Report already completed')
+        isComplete.value = true
+        emit('update-status', 'completed')
+        // Still fetch logs to show final content
+        startPolling()
+        return
+      } else if (status === 'failed') {
+        addLog('✗ Report generation failed')
+        emit('update-status', 'error')
+        return
+      }
+      // If 'in_progress' or 'planning', start polling as normal
+    } catch (err) {
+      console.debug('Could not check report status:', err)
+      // Ignore status check errors, proceed with polling
+    }
+
     startPolling()
   }
 })

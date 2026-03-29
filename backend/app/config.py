@@ -46,6 +46,8 @@ class Config:
     REPORT_LLM_TIMEOUT_SECONDS = int(os.environ.get('REPORT_LLM_TIMEOUT_SECONDS', '120'))
     REPORT_INTERVIEW_MAX_AGENTS = int(os.environ.get('REPORT_INTERVIEW_MAX_AGENTS', '3'))
     REPORT_INTERVIEW_TIMEOUT_SECONDS = int(os.environ.get('REPORT_INTERVIEW_TIMEOUT_SECONDS', '420'))
+    REPORT_INTERVIEW_PLATFORM = os.environ.get('REPORT_INTERVIEW_PLATFORM', 'reddit')  # 'reddit', 'twitter', or 'both'
+    REPORT_INTERVIEW_MAX_QUESTIONS = int(os.environ.get('REPORT_INTERVIEW_MAX_QUESTIONS', '3'))
     
     # Cloud LLM provider API keys (for model selector)
     NVIDIA_API_KEY = os.environ.get('NVIDIA_API_KEY')

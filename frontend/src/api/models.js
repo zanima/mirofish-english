@@ -20,3 +20,6 @@ export const clearStepOverride = (step) => service.delete(`/api/models/steps/${s
 
 // Cost estimation
 export const estimateCost = (data) => service.post('/api/models/estimate', data)
+
+// Model performance stats
+export const getModelStats = () => service.get('/api/models/stats')

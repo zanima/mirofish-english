@@ -83,7 +83,13 @@ class LLMClient:
 
         for attempt in range(self.MAX_RETRIES + 1):
             try:
+                start_time = time.time()
                 response = self.client.chat.completions.create(**kwargs)
+                elapsed_ms = (time.time() - start_time) * 1000
+
+                # Record usage stats
+                self._record_usage(elapsed_ms, response)
+
                 content = response.choices[0].message.content or ""
                 content = re.sub(r'<think>[\s\S]*?</think>', '', content).strip()
 
@@ -94,7 +100,11 @@ class LLMClient:
                     )
                     fallback_kwargs = dict(kwargs)
                     fallback_kwargs.pop("response_format", None)
+                    start_time_fallback = time.time()
                     response = self.client.chat.completions.create(**fallback_kwargs)
+                    elapsed_ms_fallback = (time.time() - start_time_fallback) * 1000
+                    self._record_usage(elapsed_ms_fallback, response)
+
                     content = response.choices[0].message.content or ""
                     content = re.sub(r'<think>[\s\S]*?</think>', '', content).strip()
 
@@ -217,14 +227,14 @@ class LLMClient:
         start = text.find('{')
         if start == -1:
             return None
-        
+
         depth = 0
         in_string = False
         escape = False
-        
+
         for idx in range(start, len(text)):
             ch = text[idx]
-            
+
             if in_string:
                 if escape:
                     escape = False
@@ -233,7 +243,7 @@ class LLMClient:
                 elif ch == '"':
                     in_string = False
                 continue
-            
+
             if ch == '"':
                 in_string = True
             elif ch == '{':
@@ -242,5 +252,26 @@ class LLMClient:
                 depth -= 1
                 if depth == 0:
                     return text[start:idx + 1]
-        
+
         return None
+
+    def _record_usage(self, elapsed_ms: float, response: Any) -> None:
+        """Record LLM usage statistics (latency, tokens)."""
+        try:
+            from ..services.model_registry import ModelRegistry
+
+            prompt_tokens = 0
+            completion_tokens = 0
+
+            if hasattr(response, 'usage') and response.usage:
+                prompt_tokens = getattr(response.usage, 'prompt_tokens', 0) or 0
+                completion_tokens = getattr(response.usage, 'completion_tokens', 0) or 0
+
+            ModelRegistry().record_usage(
+                model=self.model,
+                latency_ms=elapsed_ms,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens
+            )
+        except Exception as e:
+            logger.debug(f"Failed to record LLM usage stats: {e}")

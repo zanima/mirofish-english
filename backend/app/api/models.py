@@ -183,3 +183,11 @@ def estimate_cost():
     output_tokens = body.get("output_tokens", 20000)
     result = ModelRegistry.estimate_cost(model_name, provider_id, input_tokens, output_tokens)
     return jsonify({"success": True, "data": result})
+
+
+@models_bp.route('/stats', methods=['GET'])
+def get_model_stats():
+    """Return accumulated usage statistics for all models (latency, token counts)."""
+    registry = ModelRegistry()
+    stats = registry.get_stats()
+    return jsonify({"success": True, "data": stats})
