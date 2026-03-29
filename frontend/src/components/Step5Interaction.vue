@@ -2571,4 +2571,56 @@ watch(() => props.simulationId, (newId) => {
   border-top: 1px solid #E5E7EB;
   margin: 24px 0;
 }
+
+/* Dark-mode overrides */
+.interaction-panel {
+  background: #0d0d0d;
+  color: #e0e0e0;
+}
+
+.left-panel.report-style,
+.right-panel,
+.action-bar,
+.chat-container,
+.survey-container,
+.dropdown-menu,
+.report-section-item,
+.agent-profile-card,
+.report-agent-tools-card {
+  background: #161616;
+  color: #e0e0e0;
+  border-color: #252525;
+  box-shadow: none;
+}
+
+.main-title,
+.section-title,
+.action-bar-title,
+.agent-name,
+.tool-name,
+.generated-content,
+:deep(.md-h2),
+:deep(.md-h3),
+:deep(.md-h4),
+:deep(.md-p),
+:deep(strong) {
+  color: #e0e0e0;
+}
+
+.sub-title,
+.report-id,
+.action-bar-subtitle,
+.agent-role,
+.tool-desc,
+:deep(.md-h5),
+.chat-messages :deep(.md-quote),
+.result-answer :deep(.md-quote) {
+  color: #999;
+}
+
+.header-divider,
+:deep(.md-hr) {
+  border-color: #252525;
+  background: #252525;
+}
 </style>

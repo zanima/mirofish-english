@@ -5,12 +5,13 @@ import service, { requestWithRetry } from './index'
  * @param {Object} data - includes files, simulation_requirement, project_name, etc
  * @returns {Promise}
  */
-export function generateOntology(formData) {
+export function generateOntology(formData, signal) {
   return requestWithRetry(() => 
     service({
       url: '/api/graph/ontology/generate',
       method: 'post',
       data: formData,
+      signal,
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -66,5 +67,17 @@ export function getProject(projectId) {
   return service({
     url: `/api/graph/project/${projectId}`,
     method: 'get'
+  })
+}
+
+/**
+ * Cancel a running task
+ * @param {String} taskId - task ID
+ * @returns {Promise}
+ */
+export function cancelTask(taskId) {
+  return service({
+    url: `/api/graph/task/${taskId}/cancel`,
+    method: 'post'
   })
 }

@@ -43,6 +43,14 @@ export const getReport = (reportId) => {
 }
 
 /**
+ * Cancel report generation
+ * @param {string} reportId
+ */
+export const cancelReport = (reportId) => {
+  return service.post(`/api/report/${reportId}/cancel`)
+}
+
+/**
  * Talk with Report Agent
  * @param {Object} data - { simulation_id, message, chat_history? }
  */

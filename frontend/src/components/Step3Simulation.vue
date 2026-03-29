@@ -91,6 +91,14 @@
       </div>
 
       <div class="action-controls">
+        <button
+          v-if="phase === 1"
+          class="action-btn secondary"
+          :disabled="isStopping"
+          @click="handleStopSimulation"
+        >
+          {{ isStopping ? 'Stopping...' : 'Stop Simulation' }}
+        </button>
         <button 
           class="action-btn primary"
           :disabled="phase !== 2 || isGeneratingReport"
@@ -1260,5 +1268,100 @@ onUnmounted(() => {
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-right: 6px;
+}
+
+/* Dark-mode overrides */
+.simulation-panel,
+.control-bar,
+.main-content-area {
+  background: #0d0d0d;
+  color: #e0e0e0;
+}
+
+.control-bar {
+  border-bottom-color: #1e1e1e;
+}
+
+.platform-status,
+.timeline-stats,
+.timeline-card,
+.quoted-block,
+.repost-content,
+.waiting-state {
+  background: #161616;
+  border-color: #252525;
+}
+
+.platform-status.active,
+.timeline-header {
+  background: rgba(17, 17, 17, 0.92);
+  border-color: #2a2a2a;
+}
+
+.platform-status.completed {
+  background: rgba(27, 58, 27, 0.3);
+  border-color: #1b3a1b;
+}
+
+.platform-name,
+.stat-value,
+.total-count,
+.agent-name,
+.content-text,
+.action-btn.secondary {
+  color: #e0e0e0;
+}
+
+.breakdown-item.twitter,
+.breakdown-item.reddit,
+.platform-status.twitter .platform-icon,
+.platform-status.reddit .platform-icon,
+.timeline-item.twitter .marker-dot,
+.timeline-item.reddit .marker-dot {
+  color: #ccc;
+  background: #ff5722;
+}
+
+.timeline-axis,
+.breakdown-divider {
+  background: #252525;
+  color: #555;
+}
+
+.stat-label,
+.stat-total,
+.stat-unit,
+.tooltip-title,
+.timeline-stats,
+.header-meta,
+.log-header {
+  color: #888;
+}
+
+.action-btn.primary {
+  background: #ff5722;
+}
+
+.action-btn.primary:hover:not(:disabled) {
+  background: #ff6b35;
+}
+
+.action-btn.secondary {
+  background: transparent;
+  border: 1px solid #ff5722;
+}
+
+.action-btn.secondary:hover:not(:disabled) {
+  background: #ff5722;
+  color: #fff;
+}
+
+.badge-post,
+.badge-comment,
+.badge-action,
+.badge-meta {
+  background: #1e1e1e;
+  border-color: #2a2a2a;
+  color: #bbb;
 }
 </style>

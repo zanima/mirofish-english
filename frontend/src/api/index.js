@@ -64,6 +64,9 @@ export const requestWithRetry = async (requestFn, maxRetries = 3, delay = 1000) 
     try {
       return await requestFn()
     } catch (error) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED' || error?.message?.includes('canceled')) {
+        throw error
+      }
       if (i === maxRetries - 1) throw error
       
       console.warn(`Request failed, retrying (${i + 1}/${maxRetries})...`)

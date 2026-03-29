@@ -11,12 +11,17 @@ from typing import Dict, Any, Optional
 from dataclasses import dataclass, field
 
 
+class TaskCancelledError(Exception):
+    """Raised when a long-running task is cancelled by the user."""
+
+
 class TaskStatus(str, Enum):
     """Task Status Enumeration"""
     PENDING = "pending"          # Waiting
     PROCESSING = "processing"    # Processing
     COMPLETED = "completed"      # Completed
     FAILED = "failed"            # Failed
+    CANCELLED = "cancelled"      # Cancelled by user
 
 
 @dataclass
@@ -160,6 +165,45 @@ class TaskManager:
             message="Task failed",
             error=error
         )
+
+    def cancel_task(self, task_id: str) -> bool:
+        """Mark task cancelled. Returns True if the task was running and is now cancelled."""
+        with self._task_lock:
+            task = self._tasks.get(task_id)
+            if not task:
+                return False
+            if task.status in (TaskStatus.PENDING, TaskStatus.PROCESSING):
+                task.status = TaskStatus.CANCELLED
+                task.message = "Cancelled by user"
+                task.updated_at = datetime.now()
+                return True
+            return False
+
+    def is_cancelled(self, task_id: str) -> bool:
+        """Check if a task has been cancelled."""
+        with self._task_lock:
+            task = self._tasks.get(task_id)
+            return task is not None and task.status == TaskStatus.CANCELLED
+
+    def find_task(
+        self,
+        task_type: Optional[str] = None,
+        metadata_key: Optional[str] = None,
+        metadata_value: Optional[Any] = None,
+        status: Optional[TaskStatus] = None,
+    ) -> Optional[Task]:
+        """Find the latest task matching the provided filters."""
+        with self._task_lock:
+            tasks = sorted(self._tasks.values(), key=lambda item: item.created_at, reverse=True)
+            for task in tasks:
+                if task_type and task.task_type != task_type:
+                    continue
+                if status and task.status != status:
+                    continue
+                if metadata_key is not None and task.metadata.get(metadata_key) != metadata_value:
+                    continue
+                return task
+        return None
     
     def list_tasks(self, task_type: Optional[str] = None) -> list:
         """List tasks"""
@@ -177,8 +221,7 @@ class TaskManager:
         with self._task_lock:
             old_ids = [
                 tid for tid, task in self._tasks.items()
-                if task.created_at < cutoff and task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED]
+                if task.created_at < cutoff and task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]
             ]
             for tid in old_ids:
                 del self._tasks[tid]
-

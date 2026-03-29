@@ -15,6 +15,7 @@ from ..services.simulation_manager import SimulationManager, SimulationStatus
 from ..services.simulation_runner import SimulationRunner, RunnerStatus
 from ..utils.logger import get_logger
 from ..models.project import ProjectManager
+from ..models.task import TaskManager, TaskStatus, TaskCancelledError
 
 logger = get_logger('mirofish.api.simulation')
 
@@ -398,7 +399,6 @@ def prepare_simulation():
     """
     import threading
     import os
-    from ..models.task import TaskManager, TaskStatus
     from ..config import Config
     
     try:
@@ -515,6 +515,9 @@ def prepare_simulation():
                 stage_details = {}
                 
                 def progress_callback(stage, progress, message, **kwargs):
+                    if task_manager.is_cancelled(task_id):
+                        raise TaskCancelledError("Simulation preparation cancelled by user")
+
                     # Calculate total progress
                     stage_weights = {
                         "reading": (0, 20),           # 0-20%
@@ -591,6 +594,14 @@ def prepare_simulation():
                     result=result_state.to_simple_dict()
                 )
                 
+            except TaskCancelledError:
+                logger.info(f"Preparation cancelled by user: simulation_id={simulation_id}, task_id={task_id}")
+                state = manager.get_simulation(simulation_id)
+                if state:
+                    state.status = SimulationStatus.PAUSED
+                    state.error = None
+                    manager._save_simulation_state(state)
+
             except Exception as e:
                 logger.error(f"Preparation simulation failed: {str(e)}")
                 task_manager.fail_task(task_id, str(e))
@@ -662,8 +673,6 @@ def get_prepare_status():
             }
         }
     """
-    from ..models.task import TaskManager
-    
     try:
         data = request.get_json() or {}
         
@@ -741,6 +750,62 @@ def get_prepare_status():
         
     except Exception as e:
         logger.error(f"Failed to query task status: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@simulation_bp.route('/prepare/cancel', methods=['POST'])
+def cancel_prepare():
+    """Cancel an in-flight simulation preparation task."""
+    try:
+        data = request.get_json() or {}
+        task_id = data.get('task_id')
+        simulation_id = data.get('simulation_id')
+
+        task_manager = TaskManager()
+        task = None
+        if task_id:
+            task = task_manager.get_task(task_id)
+        elif simulation_id:
+            task = task_manager.find_task(
+                task_type="simulation_prepare",
+                metadata_key="simulation_id",
+                metadata_value=simulation_id,
+                status=TaskStatus.PROCESSING,
+            )
+
+        if not task:
+            return jsonify({
+                "success": False,
+                "error": "Preparation task not found"
+            }), 404
+
+        cancelled = task_manager.cancel_task(task.task_id)
+        if not cancelled:
+            return jsonify({
+                "success": False,
+                "error": f"Task cannot be cancelled (status: {task.status.value})"
+            }), 400
+
+        manager = SimulationManager()
+        state = manager.get_simulation(task.metadata.get("simulation_id"))
+        if state:
+            state.status = SimulationStatus.PAUSED
+            state.error = None
+            manager._save_simulation_state(state)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "task_id": task.task_id,
+                "simulation_id": task.metadata.get("simulation_id"),
+                "status": "cancelled"
+            }
+        })
+    except Exception as e:
+        logger.error(f"Failed to cancel preparation task: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e)

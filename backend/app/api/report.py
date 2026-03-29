@@ -13,7 +13,7 @@ from ..config import Config
 from ..services.report_agent import ReportAgent, ReportManager, ReportStatus
 from ..services.simulation_manager import SimulationManager
 from ..models.project import ProjectManager
-from ..models.task import TaskManager, TaskStatus
+from ..models.task import TaskManager, TaskStatus, TaskCancelledError
 from ..utils.logger import get_logger
 
 logger = get_logger('mirofish.api.report')
@@ -139,6 +139,8 @@ def generate_report():
                 
                 # Progress callback
                 def progress_callback(stage, progress, message):
+                    if task_manager.is_cancelled(task_id):
+                        raise TaskCancelledError("Report generation cancelled by user")
                     task_manager.update_task(
                         task_id,
                         progress=progress,
@@ -165,7 +167,8 @@ def generate_report():
                     )
                 else:
                     task_manager.fail_task(task_id, report.error or "Report generation failed")
-                
+            except TaskCancelledError:
+                logger.info(f"Report generation cancelled: report_id={report_id}, task_id={task_id}")
             except Exception as e:
                 logger.error(f"Report generation failed: {str(e)}")
                 task_manager.fail_task(task_id, str(e))
@@ -261,6 +264,53 @@ def get_generate_status():
         
     except Exception as e:
         logger.error(f"Failed to query task status: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@report_bp.route('/<report_id>/cancel', methods=['POST'])
+def cancel_report(report_id: str):
+    """Cancel an in-flight report generation task."""
+    try:
+        task_manager = TaskManager()
+        task = task_manager.find_task(
+            task_type="report_generate",
+            metadata_key="report_id",
+            metadata_value=report_id,
+            status=TaskStatus.PROCESSING,
+        )
+
+        if not task:
+            return jsonify({
+                "success": False,
+                "error": f"No active report task found for report_id: {report_id}"
+            }), 404
+
+        cancelled = task_manager.cancel_task(task.task_id)
+        if not cancelled:
+            return jsonify({
+                "success": False,
+                "error": f"Task cannot be cancelled (status: {task.status.value})"
+            }), 400
+
+        report = ReportManager.get_report(report_id)
+        if report:
+            report.status = ReportStatus.FAILED
+            report.error = "Report generation cancelled by user"
+            ReportManager.save_report(report)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "task_id": task.task_id,
+                "report_id": report_id,
+                "status": "cancelled"
+            }
+        })
+    except Exception as e:
+        logger.error(f"Failed to cancel report generation: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e)

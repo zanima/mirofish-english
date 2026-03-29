@@ -127,6 +127,15 @@
             </div>
           </div>
 
+          <button
+            v-if="!isComplete"
+            class="cancel-report-btn"
+            :disabled="isCancelling"
+            @click="handleCancelReport"
+          >
+            {{ isCancelling ? 'Stopping Report...' : 'Stop Report' }}
+          </button>
+
           <!-- Next Step Button - shown after completion -->
           <button v-if="isComplete" class="next-step-btn" @click="goToInteraction">
             <span>Enter Deep Interaction</span>
@@ -392,7 +401,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, h, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { getAgentLog, getConsoleLog } from '../api/report'
+import { getAgentLog, getConsoleLog, cancelReport } from '../api/report'
 
 const router = useRouter()
 
@@ -423,6 +432,7 @@ const expandedContent = ref(new Set())
 const expandedLogs = ref(new Set())
 const collapsedSections = ref(new Set())
 const isComplete = ref(false)
+const isCancelling = ref(false)
 const startTime = ref(null)
 const leftPanel = ref(null)
 const rightPanel = ref(null)
@@ -1826,6 +1836,22 @@ const workflowSteps = computed(() => {
 // Methods
 const addLog = (msg) => {
   emit('add-log', msg)
+}
+
+const handleCancelReport = async () => {
+  if (!props.reportId || isCancelling.value) return
+
+  isCancelling.value = true
+  try {
+    await cancelReport(props.reportId)
+    addLog('Report generation cancelled by user.')
+    stopPolling()
+    emit('update-status', 'error')
+  } catch (err) {
+    addLog(`Failed to cancel report generation: ${err.message}`)
+  } finally {
+    isCancelling.value = false
+  }
 }
 
 const isSectionCompleted = (sectionIndex) => {
@@ -5148,4 +5174,77 @@ watch(() => props.reportId, (newId) => {
 .log-msg.error { color: #EF5350; }
 .log-msg.warning { color: #FFA726; }
 .log-msg.success { color: #66BB6A; }
+
+/* Dark-mode overrides */
+.report-panel {
+  background: #0d0d0d;
+  color: #e0e0e0;
+}
+
+.left-panel.report-style,
+.right-panel,
+.workflow-overview,
+.workflow-metrics,
+.timeline-content,
+.panel-header {
+  background: #161616;
+  color: #e0e0e0;
+}
+
+.left-panel.report-style,
+.right-panel,
+.timeline-content,
+.report-section-item,
+.workflow-overview,
+.panel-header,
+.workflow-divider,
+.generated-content :deep(.md-h2) {
+  border-color: #252525;
+}
+
+.main-title,
+.section-title,
+.header-title,
+.metric-value,
+.action-label,
+.generated-content,
+.generated-content :deep(.md-h2),
+.generated-content :deep(.md-h3),
+.generated-content :deep(.md-h4),
+.generated-content :deep(p),
+.generated-content :deep(strong) {
+  color: #e0e0e0;
+}
+
+.sub-title,
+.report-id,
+.header-index,
+.header-meta,
+.metric-label,
+.action-time,
+.status-message,
+.generated-content :deep(.md-quote) {
+  color: #999;
+}
+
+.cancel-report-btn {
+  margin-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid #ff5722;
+  color: #ff5722;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-report-btn:hover:not(:disabled) {
+  background: #ff5722;
+  color: #fff;
+}
 </style>

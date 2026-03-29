@@ -38,7 +38,7 @@ except Exception:  # pragma: no cover - local non-Graphiti environments
             self.max_tokens = getattr(config, "max_tokens", 2048)
 
 from ..utils.logger import get_logger
-from ..models.task import TaskManager, TaskStatus
+from ..models.task import TaskManager, TaskStatus, TaskCancelledError
 from .text_processor import TextProcessor
 
 logger = get_logger('mirofish.graphiti_builder')
@@ -423,12 +423,14 @@ class GraphitiBuilderService:
 
     # ── async graph operations ────────────────────────────────────────────────
 
-    async def _async_add_episodes(self, graph_id: str, chunks: List[str], progress_callback=None):
+    async def _async_add_episodes(self, graph_id: str, chunks: List[str], progress_callback=None, should_cancel=None):
         """Add all chunks as episodes. Runs inside a background thread event loop."""
         from graphiti_core.nodes import EpisodeType
 
         g = _make_graphiti()
         try:
+            if should_cancel and should_cancel():
+                raise TaskCancelledError("Graph build cancelled by user")
             try:
                 await asyncio.wait_for(
                     g.build_indices_and_constraints(),
@@ -443,6 +445,8 @@ class GraphitiBuilderService:
             total = len(chunks)
             now = datetime.now(timezone.utc)
             for i, chunk in enumerate(chunks):
+                if should_cancel and should_cancel():
+                    raise TaskCancelledError("Graph build cancelled by user")
                 if progress_callback:
                     progress_callback(
                         f"Processing chunk {i + 1}/{total}...",
@@ -556,9 +560,9 @@ class GraphitiBuilderService:
     def create_graph(self, name: str) -> str:
         return f"mirofish_{uuid.uuid4().hex[:16]}"
 
-    def add_text_batches(self, graph_id, chunks, batch_size=3, progress_callback=None) -> list:
+    def add_text_batches(self, graph_id, chunks, batch_size=3, progress_callback=None, should_cancel=None) -> list:
         """Synchronous wrapper — used from api/graph.py build_task."""
-        _run_async(self._async_add_episodes(graph_id, chunks, progress_callback))
+        _run_async(self._async_add_episodes(graph_id, chunks, progress_callback, should_cancel))
         return []
 
     def _wait_for_processing(self, graph_id, expected_chunks, progress_callback=None, timeout=60):

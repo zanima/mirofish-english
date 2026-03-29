@@ -15,7 +15,7 @@ from ..services.graphiti_builder import GraphitiBuilderService
 from ..services.text_processor import TextProcessor
 from ..utils.file_parser import FileParser
 from ..utils.logger import get_logger
-from ..models.task import TaskManager, TaskStatus
+from ..models.task import TaskManager, TaskStatus, TaskCancelledError
 from ..models.project import ProjectManager, ProjectStatus
 from ..services.web_fetcher import fetch_urls, search_and_fetch
 
@@ -402,7 +402,13 @@ def build_graph():
         
         # Create async task
         task_manager = TaskManager()
-        task_id = task_manager.create_task(f"Build graph: {graph_name}")
+        task_id = task_manager.create_task(
+            task_type="graph_build",
+            metadata={
+                "project_id": project_id,
+                "graph_name": graph_name,
+            }
+        )
         logger.info(f"Created graph build task: task_id={task_id}, project_id={project_id}")
         
         # Update project status
@@ -420,16 +426,22 @@ def build_graph():
                     status=TaskStatus.PROCESSING,
                     message="Initialize graph build service..."
                 )
+
+                def ensure_not_cancelled():
+                    if task_manager.is_cancelled(task_id):
+                        raise TaskCancelledError("Graph build cancelled by user")
                 
                 # Create graph build service (Graphiti — local, no rate limits)
                 builder = GraphitiBuilderService()
 
                 # Chunking
+                ensure_not_cancelled()
                 task_manager.update_task(task_id, message="Text chunking...", progress=5)
                 chunks = TextProcessor.split_text(text, chunk_size=chunk_size, overlap=chunk_overlap)
                 total_chunks = len(chunks)
 
                 # Create graph
+                ensure_not_cancelled()
                 task_manager.update_task(task_id, message="Creating graph...", progress=10)
                 graph_id = builder.create_graph(name=graph_name)
 
@@ -439,20 +451,30 @@ def build_graph():
 
                 # Send text to Graphiti
                 def add_progress_callback(msg, progress_ratio):
+                    ensure_not_cancelled()
                     task_manager.update_task(task_id, message=msg, progress=15 + int(progress_ratio * 40))
 
                 task_manager.update_task(task_id, message=f"Sending {total_chunks} chunks to Graphiti...", progress=15)
-                builder.add_text_batches(graph_id, chunks, batch_size=3, progress_callback=add_progress_callback)
+                builder.add_text_batches(
+                    graph_id,
+                    chunks,
+                    batch_size=3,
+                    progress_callback=add_progress_callback,
+                    should_cancel=lambda: task_manager.is_cancelled(task_id),
+                )
 
                 # Wait for Graphiti to finish processing
+                ensure_not_cancelled()
                 task_manager.update_task(task_id, message="Waiting for Graphiti to process...", progress=55)
 
                 def wait_progress_callback(msg, progress_ratio):
+                    ensure_not_cancelled()
                     task_manager.update_task(task_id, message=msg, progress=55 + int(progress_ratio * 35))
 
                 builder._wait_for_processing(graph_id, total_chunks, wait_progress_callback)
 
                 # Get graph data
+                ensure_not_cancelled()
                 task_manager.update_task(task_id, message="Getting graph data...", progress=95)
                 graph_data = builder.get_graph_data(graph_id)
                 
@@ -478,7 +500,21 @@ def build_graph():
                         "chunk_count": total_chunks
                     }
                 )
-                
+            except TaskCancelledError:
+                build_logger.info(f"[{task_id}] Graph construction cancelled by user")
+                project.status = ProjectStatus.ONTOLOGY_GENERATED
+                project.graph_id = None
+                project.graph_build_task_id = None
+                project.error = "Graph build cancelled by user"
+                ProjectManager.save_project(project)
+
+                task_manager.update_task(
+                    task_id,
+                    status=TaskStatus.CANCELLED,
+                    message="Graph construction cancelled by user",
+                    progress=0,
+                    error=None,
+                )
             except Exception as e:
                 # Update project status to failed
                 build_logger.error(f"[{task_id}] Graph construction failed: {str(e)}")
@@ -535,6 +571,19 @@ def get_task(task_id: str):
         "success": True,
         "data": task.to_dict()
     })
+
+
+@graph_bp.route('/task/<task_id>/cancel', methods=['POST'])
+def cancel_task(task_id: str):
+    """Cancel a running task."""
+    tm = TaskManager()
+    cancelled = tm.cancel_task(task_id)
+    if not cancelled:
+        task = tm.get_task(task_id)
+        if not task:
+            return jsonify({"success": False, "error": f"Task does not exist: {task_id}"}), 404
+        return jsonify({"success": False, "error": f"Task cannot be cancelled (status: {task.status.value})"}), 400
+    return jsonify({"success": True, "data": {"task_id": task_id, "status": "cancelled"}})
 
 
 @graph_bp.route('/tasks', methods=['GET'])

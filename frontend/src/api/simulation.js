@@ -25,6 +25,14 @@ export const getPrepareStatus = (data) => {
 }
 
 /**
+ * Cancel simulation preparation
+ * @param {Object} data - { task_id?, simulation_id? }
+ */
+export const cancelPrepare = (data) => {
+  return service.post('/api/simulation/prepare/cancel', data)
+}
+
+/**
  * Get simulation status
  * @param {string} simulationId
  */
@@ -184,4 +192,3 @@ export const interviewAgents = (data) => {
 export const getSimulationHistory = (limit = 20) => {
   return service.get('/api/simulation/history', { params: { limit } })
 }
-

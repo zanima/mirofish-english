@@ -110,8 +110,8 @@ PROVIDER_CATALOG: Dict[str, Dict[str, Any]] = {
         "default_key": None,
         "env_key": "KIMI_API_KEY",
         "models": [
+            {"id": "kimi-k2.5", "name": "Kimi K2.5"},
             {"id": "kimi-k2-0711", "name": "Kimi K2"},
-            {"id": "moonshot-v1-auto", "name": "Kimi K2.5 (Auto)"},
         ],
     },
 }
@@ -138,8 +138,8 @@ COST_CATALOG = {
     "deepseek-chat":     {"input": 0.27, "output": 1.10},
     "deepseek-reasoner": {"input": 0.55, "output": 2.19},
     # Kimi
-    "kimi-k2-0711":      {"input": 0.00, "output": 0.00},
-    "moonshot-v1-auto":  {"input": 0.00, "output": 0.00},
+    "kimi-k2-0711":      {"input": 0.55, "output": 2.20},
+    "kimi-k2.5":         {"input": 0.60, "output": 3.00},
 }
 
 # ── step names ────────────────────────────────────────────────────────────────

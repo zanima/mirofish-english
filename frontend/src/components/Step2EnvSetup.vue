@@ -1,6 +1,13 @@
 <template>
   <div class="env-setup-panel">
     <div class="scroll-container">
+      <!-- Stop button — visible during preparation (phases 0-3) -->
+      <div v-if="phase >= 0 && phase < 4" class="stop-bar">
+        <button class="stop-btn" @click="handleCancel">
+          <span class="stop-icon">■</span> Stop Preparation
+        </button>
+      </div>
+
       <!-- Step 01: Simulation Instance -->
       <div class="step-card" :class="{ 'active': phase === 0, 'completed': phase > 0 }">
         <div class="card-header">
@@ -635,6 +642,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { 
   prepareSimulation, 
+  cancelPrepare,
   getPrepareStatus, 
   getSimulationProfilesRealtime,
   getSimulationConfig,
@@ -648,7 +656,7 @@ const props = defineProps({
   systemLogs: Array
 })
 
-const emit = defineEmits(['go-back', 'next-step', 'add-log', 'update-status'])
+const emit = defineEmits(['go-back', 'next-step', 'add-log', 'update-status', 'cancel-step'])
 
 // State
 const phase = ref(0) // 0: Init, 1: Generate Profiles, 2: Generate Config, 3: Orchestration, 4: Ready
@@ -735,6 +743,30 @@ const totalTopicsCount = computed(() => {
 // Methods
 const addLog = (msg) => {
   emit('add-log', msg)
+}
+
+// Handle cancel/stop
+const handleCancel = async () => {
+  stopPolling()
+  stopProfilesPolling()
+  stopConfigPolling()
+
+  if (taskId.value || props.simulationId) {
+    try {
+      await cancelPrepare({
+        task_id: taskId.value,
+        simulation_id: props.simulationId
+      })
+      addLog('Preparation cancelled by user.')
+    } catch (err) {
+      addLog(`Cancel request failed: ${err.message}`)
+    }
+  } else {
+    addLog('Preparation stopped by user.')
+  }
+
+  emit('update-status', 'error')
+  emit('cancel-step')
 }
 
 // Handle start simulation button click
@@ -894,6 +926,12 @@ const pollPrepareStatus = async () => {
         stopPolling()
         stopProfilesPolling()
         await loadPreparedData()
+      } else if (data.status === 'cancelled') {
+        addLog('Preparation task cancelled.')
+        stopPolling()
+        stopProfilesPolling()
+        stopConfigPolling()
+        emit('update-status', 'error')
       } else if (data.status === 'failed') {
         addLog(`✗ Preparation failed: ${data.error || 'Unknown error'}`)
         stopPolling()
@@ -2598,5 +2636,149 @@ onUnmounted(() => {
 .modal-leave-to .profile-modal {
   transform: scale(0.95) translateY(10px);
   opacity: 0;
+}
+
+/* Dark-mode overrides */
+.env-setup-panel {
+  background: #0d0d0d;
+  color: #e0e0e0;
+}
+
+.stop-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -8px;
+}
+
+.stop-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid #ff5722;
+  color: #ff5722;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.stop-btn:hover {
+  background: #ff5722;
+  color: #fff;
+}
+
+.step-card,
+.profile-card,
+.agent-card,
+.config-item,
+.period-item,
+.info-card,
+.stats-grid {
+  background: #161616;
+  border-color: #252525;
+  box-shadow: none;
+}
+
+.step-card.active {
+  border-color: #ff5722;
+  box-shadow: 0 4px 12px rgba(255, 87, 34, 0.15);
+}
+
+.step-card.active .step-num,
+.step-card.completed .step-num,
+.step-title,
+.profile-realname,
+.agent-name,
+.stat-value,
+.config-item-value,
+.info-value,
+.highlight-tip {
+  color: #e0e0e0 !important;
+}
+
+.step-num {
+  color: #444;
+}
+
+.api-note,
+.profile-username,
+.stat-label,
+.timeline-label,
+.timeline-marks,
+.config-item-label,
+.period-label,
+.period-hours,
+.param-item .param-label,
+.param-item .param-value,
+.info-label,
+.auto-desc p {
+  color: #888;
+}
+
+.description,
+.profile-profession,
+.profile-bio,
+.preview-title,
+.config-block-title,
+.agent-type,
+.stance-neutral,
+.duration-badge {
+  color: #bbb;
+}
+
+.badge.success {
+  background: #1b3a1b;
+  color: #4caf50;
+}
+
+.badge.pending {
+  background: #1e1e1e;
+  color: #666;
+}
+
+.badge.accent,
+.topic-tag {
+  background: rgba(255, 87, 34, 0.15);
+  color: #ff8a65;
+}
+
+.action-btn.primary {
+  background: #ff5722;
+}
+
+.action-btn.secondary {
+  background: #1e1e1e;
+  color: #ccc;
+}
+
+.action-btn.secondary:hover:not(:disabled) {
+  background: #2a2a2a;
+}
+
+.profiles-preview,
+.config-block,
+.agent-card-header,
+.info-row,
+.system-logs {
+  border-color: #252525;
+}
+
+.profiles-list::-webkit-scrollbar-thumb,
+.agents-cards::-webkit-scrollbar-thumb,
+.log-content::-webkit-scrollbar-thumb {
+  background: #333;
+}
+
+.profile-card:hover,
+.agent-card:hover {
+  background: #1c1c1c;
+  border-color: #3a3a3a;
+}
+
+.system-logs {
+  background: #050505;
 }
 </style>

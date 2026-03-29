@@ -51,7 +51,7 @@
       <!-- Right Panel: Step Components -->
       <div class="panel-wrapper right" :style="rightPanelStyle">
         <!-- Step 1: Graph Construction -->
-        <Step1GraphBuild 
+        <Step1GraphBuild
           v-if="currentStep === 1"
           :currentPhase="currentPhase"
           :projectData="projectData"
@@ -60,6 +60,7 @@
           :graphData="graphData"
           :systemLogs="systemLogs"
           @next-step="handleNextStep"
+          @cancel-step="handleCancelStep"
         />
         <!-- Step 2: Environment Setup -->
         <Step2EnvSetup
@@ -70,6 +71,7 @@
           @go-back="handleGoBack"
           @next-step="handleNextStep"
           @add-log="addLog"
+          @cancel-step="handleCancelStep"
         />
       </div>
     </main>
@@ -83,7 +85,8 @@ import GraphPanel from '../components/GraphPanel.vue'
 import ModelSelector from '../components/ModelSelector.vue'
 import Step1GraphBuild from '../components/Step1GraphBuild.vue'
 import Step2EnvSetup from '../components/Step2EnvSetup.vue'
-import { generateOntology, getProject, buildGraph, getTaskStatus, getGraphData } from '../api/graph'
+import { generateOntology, getProject, buildGraph, getTaskStatus, getGraphData, cancelTask } from '../api/graph'
+import { createSimulation } from '../api/simulation'
 import { getPendingUpload, clearPendingUpload } from '../store/pendingUpload'
 
 const route = useRoute()
@@ -111,6 +114,7 @@ const systemLogs = ref([])
 // Polling timers
 let pollTimer = null
 let graphPollTimer = null
+let ontologyAbortController = null
 
 // --- Computed Layout Styles ---
 const leftPanelStyle = computed(() => {
@@ -159,12 +163,37 @@ const toggleMaximize = (target) => {
   }
 }
 
-const handleNextStep = (params = {}) => {
+const handleNextStep = async (params = {}) => {
+  if (currentStep.value === 1) {
+    if (!projectData.value?.project_id || !projectData.value?.graph_id) {
+      addLog('Cannot create simulation: project or graph data is missing.')
+      return
+    }
+
+    addLog('Creating simulation instance...')
+    try {
+      const res = await createSimulation({
+        project_id: projectData.value.project_id,
+        graph_id: projectData.value.graph_id,
+        enable_twitter: true,
+        enable_reddit: true,
+      })
+
+      if (res.success && res.data?.simulation_id) {
+        addLog(`Simulation instance created: ${res.data.simulation_id}`)
+        router.push({ name: 'Simulation', params: { simulationId: res.data.simulation_id } })
+      } else {
+        addLog(`Failed to create simulation: ${res.error || 'Unknown error'}`)
+      }
+    } catch (err) {
+      addLog(`Exception creating simulation: ${err.message}`)
+    }
+    return
+  }
+
   if (currentStep.value < 5) {
     currentStep.value++
     addLog(`Entering Step ${currentStep.value}: ${stepNames[currentStep.value - 1]}`)
-    
-    // If entering Step 3 from Step 2, record simulation round configuration
     if (currentStep.value === 3 && params.maxRounds) {
       addLog(`Custom simulation rounds: ${params.maxRounds}`)
     }
@@ -176,6 +205,35 @@ const handleGoBack = () => {
     currentStep.value--
     addLog(`Back to Step ${currentStep.value}: ${stepNames[currentStep.value - 1]}`)
   }
+}
+
+const handleCancelStep = async () => {
+  addLog('User requested cancellation...')
+  stopPolling()
+  stopGraphPolling()
+
+  if (currentPhase.value === 0 && ontologyAbortController) {
+    ontologyAbortController.abort()
+    ontologyAbortController = null
+    addLog('Ontology request aborted.')
+  }
+
+  // Cancel active build task if there is one
+  if (projectData.value?.graph_build_task_id) {
+    try {
+      await cancelTask(projectData.value.graph_build_task_id)
+      addLog('Task cancelled successfully.')
+    } catch (err) {
+      addLog(`Cancel request failed: ${err.message}`)
+    }
+  }
+
+  // Reset UI state
+  ontologyProgress.value = null
+  buildProgress.value = null
+  error.value = 'Operation cancelled by user'
+  currentPhase.value = -1
+  addLog('Operation stopped. You can return home to start over.')
 }
 
 // --- Data Logic ---
@@ -203,6 +261,7 @@ const handleNewProject = async () => {
     currentPhase.value = 0
     ontologyProgress.value = { message: 'Uploading and analyzing data...' }
     addLog('Starting ontology generation: Processing input data...')
+    ontologyAbortController = new AbortController()
 
     const formData = new FormData()
     pending.files.forEach(f => formData.append('files', f))
@@ -214,7 +273,7 @@ const handleNewProject = async () => {
       formData.append('search_query', pending.searchQuery)
     }
     
-    const res = await generateOntology(formData)
+    const res = await generateOntology(formData, ontologyAbortController.signal)
     if (res.success) {
       clearPendingUpload()
       currentProjectId.value = res.data.project_id
@@ -229,9 +288,15 @@ const handleNewProject = async () => {
       addLog(`Error generating ontology: ${error.value}`)
     }
   } catch (err) {
-    error.value = err.message
-    addLog(`Exception in handleNewProject: ${err.message}`)
+    if (err.name === 'AbortError' || err.code === 'ERR_CANCELED' || err.message?.includes('canceled')) {
+      error.value = 'Operation cancelled by user'
+      addLog('Ontology generation cancelled.')
+    } else {
+      error.value = err.message
+      addLog(`Exception in handleNewProject: ${err.message}`)
+    }
   } finally {
+    ontologyAbortController = null
     loading.value = false
   }
 }
@@ -246,7 +311,7 @@ const loadProject = async () => {
       updatePhaseByStatus(res.data.status)
       addLog(`Project loaded. Status: ${res.data.status}`)
       
-      if (res.data.status === 'ontology_generated' && !res.data.graph_id) {
+      if (res.data.status === 'ontology_generated' && !res.data.graph_id && !res.data.error) {
         await startBuildGraph()
       } else if (res.data.status === 'graph_building' && res.data.graph_build_task_id) {
         currentPhase.value = 1
@@ -286,6 +351,10 @@ const startBuildGraph = async () => {
     
     const res = await buildGraph({ project_id: currentProjectId.value })
     if (res.success) {
+      projectData.value = {
+        ...(projectData.value || {}),
+        graph_build_task_id: res.data.task_id
+      }
       addLog(`Graph build task started. Task ID: ${res.data.task_id}`)
       startPollingTask(res.data.task_id)
     } else {
@@ -356,6 +425,11 @@ const pollTaskStatus = async (taskId) => {
         stopGraphPolling()
         error.value = task.error
         addLog(`Graph build task failed: ${task.error}`)
+      } else if (task.status === 'cancelled') {
+        stopPolling()
+        stopGraphPolling()
+        error.value = 'Operation cancelled by user'
+        addLog('Graph build task cancelled.')
       }
     }
   } catch (e) {
@@ -418,7 +492,8 @@ onUnmounted(() => {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #FFF;
+  background: #0a0a0a;
+  color: #e0e0e0;
   overflow: hidden;
   font-family: 'Space Grotesk', 'Noto Sans SC', system-ui, sans-serif;
 }
@@ -426,12 +501,12 @@ onUnmounted(() => {
 /* Header */
 .app-header {
   height: 60px;
-  border-bottom: 1px solid #EAEAEA;
+  border-bottom: 1px solid #1e1e1e;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  background: #FFF;
+  background: #111;
   z-index: 100;
   position: relative;
 }
@@ -448,11 +523,12 @@ onUnmounted(() => {
   font-size: 18px;
   letter-spacing: 1px;
   cursor: pointer;
+  color: #fff;
 }
 
 .view-switcher {
   display: flex;
-  background: #F5F5F5;
+  background: #1a1a1a;
   padding: 4px;
   border-radius: 6px;
   gap: 4px;
@@ -464,16 +540,16 @@ onUnmounted(() => {
   padding: 6px 16px;
   font-size: 12px;
   font-weight: 600;
-  color: #666;
+  color: #777;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .switch-btn.active {
-  background: #FFF;
-  color: #000;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  background: #2a2a2a;
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 .status-indicator {
@@ -481,7 +557,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: #666;
+  color: #888;
   font-weight: 500;
 }
 
@@ -501,25 +577,25 @@ onUnmounted(() => {
 .step-num {
   font-family: 'JetBrains Mono', monospace;
   font-weight: 700;
-  color: #999;
+  color: #666;
 }
 
 .step-name {
   font-weight: 700;
-  color: #000;
+  color: #e0e0e0;
 }
 
 .step-divider {
   width: 1px;
   height: 14px;
-  background-color: #E0E0E0;
+  background-color: #333;
 }
 
 .dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #CCC;
+  background: #555;
 }
 
 .status-indicator.processing .dot { background: #FF5722; animation: pulse 1s infinite; }
@@ -544,6 +620,6 @@ onUnmounted(() => {
 }
 
 .panel-wrapper.left {
-  border-right: 1px solid #EAEAEA;
+  border-right: 1px solid #1e1e1e;
 }
 </style>
