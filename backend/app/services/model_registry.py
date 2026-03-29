@@ -183,6 +183,7 @@ class ModelRegistry:
 
         # Per-step overrides: {"ontology": ModelSelection, "report": ModelSelection, ...}
         self._step_overrides: Dict[str, ModelSelection] = {}
+        self._seed_env_step_defaults()
 
     # ── public API ───────────────────────────────────────────────────────
 
@@ -290,6 +291,25 @@ class ModelRegistry:
         return info["base_url"] if info else None
 
     # ── private ──────────────────────────────────────────────────────────
+
+    def _seed_env_step_defaults(self) -> None:
+        """Apply startup per-step defaults from env without blocking later runtime changes."""
+        from ..config import Config
+
+        if Config.GRAPHITI_MODEL_NAME:
+            base_url = Config.GRAPHITI_BASE_URL or self._active.base_url
+            api_key = Config.GRAPHITI_API_KEY or self._active.api_key or "ollama"
+            self._step_overrides["graph"] = ModelSelection(
+                provider_id=self._detect_provider(base_url),
+                model_name=Config.GRAPHITI_MODEL_NAME,
+                base_url=base_url,
+                api_key=api_key,
+            )
+            logger.info(
+                "Seeded graph step default from env → %s / %s",
+                self._step_overrides["graph"].provider_id,
+                self._step_overrides["graph"].model_name,
+            )
 
     @staticmethod
     def _detect_provider(base_url: str) -> str:

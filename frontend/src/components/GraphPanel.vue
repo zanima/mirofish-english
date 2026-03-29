@@ -289,7 +289,7 @@ const entityTypes = computed(() => {
   const colors = ['#FF6B35', '#004E89', '#7B2D8E', '#1A936F', '#C5283D', '#E9724C', '#3498db', '#9b59b6', '#27ae60', '#f39c12']
   
   props.graphData.nodes.forEach(node => {
-    const type = node.labels?.find(l => l !== 'Entity') || 'Entity'
+    const type = node.labels?.find(l => l !== 'Entity') || node.attributes?.entity_type || 'Entity'
     if (!typeMap[type]) {
       typeMap[type] = { name: type, count: 0, color: colors[Object.keys(typeMap).length % colors.length] }
     }
@@ -356,7 +356,7 @@ const renderGraph = () => {
   const nodes = nodesData.map(n => ({
     id: n.uuid,
     name: n.name || 'Unnamed',
-    type: n.labels?.find(l => l !== 'Entity') || 'Entity',
+    type: n.labels?.find(l => l !== 'Entity') || n.attributes?.entity_type || 'Entity',
     rawData: n
   }))
   
@@ -409,9 +409,10 @@ const renderGraph = () => {
         source: e.source_node_uuid,
         target: e.target_node_uuid,
         type: 'SELF_LOOP',
-        name: `Self Relations (${allSelfLoops.length})`,
+        name: '',
         curvature: 0,
         isSelfLoop: true,
+        hideLabel: true,
         rawData: {
           isSelfLoopGroup: true,
           source_name: nodeName,
@@ -453,6 +454,7 @@ const renderGraph = () => {
       name: e.name || e.fact_type || 'RELATED',
       curvature,
       isSelfLoop: false,
+      hideLabel: false,
       pairIndex: currentIndex,
       pairTotal: totalCount,
       rawData: {
@@ -571,18 +573,18 @@ const renderGraph = () => {
   const link = linkGroup.selectAll('path')
     .data(edges)
     .enter().append('path')
-    .attr('stroke', '#C0C0C0')
+    .attr('stroke', '#B8BCC6')
     .attr('stroke-width', 1.5)
     .attr('fill', 'none')
     .style('cursor', 'pointer')
     .on('click', (event, d) => {
       event.stopPropagation()
       // Reset previously selected edge styles
-      linkGroup.selectAll('path').attr('stroke', '#C0C0C0').attr('stroke-width', 1.5)
-      linkLabelBg.attr('fill', 'rgba(255,255,255,0.95)')
-      linkLabels.attr('fill', '#666')
+      linkGroup.selectAll('path').attr('stroke', '#B8BCC6').attr('stroke-width', 1.5)
+      linkLabelBg.attr('fill', 'rgba(18,18,18,0.94)').attr('stroke', '#2f2f2f')
+      linkLabels.attr('fill', '#ECECEC')
       // Highlight currently selected edge
-      d3.select(event.target).attr('stroke', '#3498db').attr('stroke-width', 3)
+      d3.select(event.target).attr('stroke', '#FF8A50').attr('stroke-width', 3)
       
       selectedItem.value = {
         type: 'edge',
@@ -590,24 +592,26 @@ const renderGraph = () => {
       }
     })
 
-  // Link labels background (white background for clearer text)
+  // Link labels background
   const linkLabelBg = linkGroup.selectAll('rect')
     .data(edges)
     .enter().append('rect')
-    .attr('fill', 'rgba(255,255,255,0.95)')
+    .attr('fill', 'rgba(18,18,18,0.94)')
+    .attr('stroke', '#2f2f2f')
+    .attr('stroke-width', 1)
     .attr('rx', 3)
     .attr('ry', 3)
     .style('cursor', 'pointer')
     .style('pointer-events', 'all')
-    .style('display', showEdgeLabels.value ? 'block' : 'none')
+    .style('display', d => (showEdgeLabels.value && !d.hideLabel && d.name) ? 'block' : 'none')
     .on('click', (event, d) => {
       event.stopPropagation()
-      linkGroup.selectAll('path').attr('stroke', '#C0C0C0').attr('stroke-width', 1.5)
-      linkLabelBg.attr('fill', 'rgba(255,255,255,0.95)')
-      linkLabels.attr('fill', '#666')
+      linkGroup.selectAll('path').attr('stroke', '#B8BCC6').attr('stroke-width', 1.5)
+      linkLabelBg.attr('fill', 'rgba(18,18,18,0.94)').attr('stroke', '#2f2f2f')
+      linkLabels.attr('fill', '#ECECEC')
       // Highlight corresponding edge
-      link.filter(l => l === d).attr('stroke', '#3498db').attr('stroke-width', 3)
-      d3.select(event.target).attr('fill', 'rgba(52, 152, 219, 0.1)')
+      link.filter(l => l === d).attr('stroke', '#FF8A50').attr('stroke-width', 3)
+      d3.select(event.target).attr('fill', 'rgba(255, 138, 80, 0.18)').attr('stroke', '#FF8A50')
       
       selectedItem.value = {
         type: 'edge',
@@ -621,21 +625,21 @@ const renderGraph = () => {
     .enter().append('text')
     .text(d => d.name)
     .attr('font-size', '9px')
-    .attr('fill', '#666')
+    .attr('fill', '#ECECEC')
     .attr('text-anchor', 'middle')
     .attr('dominant-baseline', 'middle')
     .style('cursor', 'pointer')
     .style('pointer-events', 'all')
     .style('font-family', 'system-ui, sans-serif')
-    .style('display', showEdgeLabels.value ? 'block' : 'none')
+    .style('display', d => (showEdgeLabels.value && !d.hideLabel && d.name) ? 'block' : 'none')
     .on('click', (event, d) => {
       event.stopPropagation()
-      linkGroup.selectAll('path').attr('stroke', '#C0C0C0').attr('stroke-width', 1.5)
-      linkLabelBg.attr('fill', 'rgba(255,255,255,0.95)')
-      linkLabels.attr('fill', '#666')
+      linkGroup.selectAll('path').attr('stroke', '#B8BCC6').attr('stroke-width', 1.5)
+      linkLabelBg.attr('fill', 'rgba(18,18,18,0.94)').attr('stroke', '#2f2f2f')
+      linkLabels.attr('fill', '#ECECEC')
       // Highlight corresponding edge
-      link.filter(l => l === d).attr('stroke', '#3498db').attr('stroke-width', 3)
-      d3.select(event.target).attr('fill', '#3498db')
+      link.filter(l => l === d).attr('stroke', '#FF8A50').attr('stroke-width', 3)
+      d3.select(event.target).attr('fill', '#FF8A50')
       
       selectedItem.value = {
         type: 'edge',
@@ -699,12 +703,12 @@ const renderGraph = () => {
       event.stopPropagation()
       // Reset all node styles
       node.attr('stroke', '#fff').attr('stroke-width', 2.5)
-      linkGroup.selectAll('path').attr('stroke', '#C0C0C0').attr('stroke-width', 1.5)
+      linkGroup.selectAll('path').attr('stroke', '#B8BCC6').attr('stroke-width', 1.5)
       // Highlight selected node
-      d3.select(event.target).attr('stroke', '#E91E63').attr('stroke-width', 4)
+      d3.select(event.target).attr('stroke', '#FFD5C2').attr('stroke-width', 4)
       // Highlight edges connected to this node
       link.filter(l => l.source.id === d.id || l.target.id === d.id)
-        .attr('stroke', '#E91E63')
+        .attr('stroke', '#FF8A50')
         .attr('stroke-width', 2.5)
       
       selectedItem.value = {
@@ -716,7 +720,7 @@ const renderGraph = () => {
     })
     .on('mouseenter', (event, d) => {
       if (!selectedItem.value || selectedItem.value.data?.uuid !== d.rawData.uuid) {
-        d3.select(event.target).attr('stroke', '#333').attr('stroke-width', 3)
+        d3.select(event.target).attr('stroke', '#F6F6F6').attr('stroke-width', 3)
       }
     })
     .on('mouseleave', (event, d) => {
@@ -731,8 +735,12 @@ const renderGraph = () => {
     .enter().append('text')
     .text(d => d.name.length > 8 ? d.name.substring(0, 8) + '…' : d.name)
     .attr('font-size', '11px')
-    .attr('fill', '#333')
+    .attr('fill', '#F3F3F3')
     .attr('font-weight', '500')
+    .attr('stroke', 'rgba(10,10,10,0.92)')
+    .attr('stroke-width', 4)
+    .attr('paint-order', 'stroke')
+    .attr('stroke-linejoin', 'round')
     .attr('dx', 14)
     .attr('dy', 4)
     .style('pointer-events', 'none')
@@ -777,9 +785,9 @@ const renderGraph = () => {
   svg.on('click', () => {
     selectedItem.value = null
     node.attr('stroke', '#fff').attr('stroke-width', 2.5)
-    linkGroup.selectAll('path').attr('stroke', '#C0C0C0').attr('stroke-width', 1.5)
-    linkLabelBg.attr('fill', 'rgba(255,255,255,0.95)')
-    linkLabels.attr('fill', '#666')
+    linkGroup.selectAll('path').attr('stroke', '#B8BCC6').attr('stroke-width', 1.5)
+    linkLabelBg.attr('fill', 'rgba(18,18,18,0.94)').attr('stroke', '#2f2f2f')
+    linkLabels.attr('fill', '#ECECEC')
   })
 }
 
@@ -790,10 +798,10 @@ watch(() => props.graphData, () => {
 // Watch edge label display toggle
 watch(showEdgeLabels, (newVal) => {
   if (linkLabelsRef) {
-    linkLabelsRef.style('display', newVal ? 'block' : 'none')
+    linkLabelsRef.style('display', d => (newVal && !d.hideLabel && d.name) ? 'block' : 'none')
   }
   if (linkLabelBgRef) {
-    linkLabelBgRef.style('display', newVal ? 'block' : 'none')
+    linkLabelBgRef.style('display', d => (newVal && !d.hideLabel && d.name) ? 'block' : 'none')
   }
 })
 

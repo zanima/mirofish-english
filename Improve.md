@@ -191,11 +191,85 @@
 
 ---
 
-## 11. Future Improvements (TODO)
-- [ ] Anthropic adapter — wrap Anthropic SDK behind OpenAI-compatible interface
-- [ ] Model performance tracking — log latency/token counts per model per step
-- [ ] Frontend recovery after backend restarts (auto-reattach to report/simulation state)
-- [ ] Report interview optimization (fewer questions, single-platform mode)
-- [ ] Entity label deduplication in graph-to-persona pipeline
-- [ ] DOCX and JSON seed data support
+## 11. Workflow Stability + Dark Route Fixes (DONE)
+**Goal:** Finish the interrupted stability pass: correct Kimi config, add real stop/cancel controls, and make post-Home routes visually consistent.
 
+### Commit
+- `17531a7` — `Fix task cancellation flow, route dark theme, and Kimi model config`
+
+### Implemented
+- Corrected Kimi provider catalog to use `kimi-k2.5` and `kimi-k2-0711`
+- Fixed Kimi pricing in `COST_CATALOG`
+- Added cancellable task support to `TaskManager` with lookup helpers
+- Added real graph build cancellation checks in Graphiti ingestion/build flow
+- Added simulation preparation cancel endpoint: `POST /api/simulation/prepare/cancel`
+- Added report cancel endpoint: `POST /api/report/<report_id>/cancel`
+- Added frontend stop/cancel wiring for:
+  - Step 1 graph build
+  - Step 2 simulation preparation
+  - Step 3 simulation run
+  - Step 4 report generation
+- Added frontend abort handling for ontology generation request
+- Fixed `MainView.vue` step flow to create a simulation instance before entering Step 2 route
+- Applied dark theme route shell updates to:
+  - `SimulationView.vue`
+  - `SimulationRunView.vue`
+  - `ReportView.vue`
+  - `InteractionView.vue`
+- Added dark-theme overrides to:
+  - `Step2EnvSetup.vue`
+  - `Step3Simulation.vue`
+  - `Step4Report.vue`
+  - `Step5Interaction.vue`
+
+### Files Modified
+- `backend/app/models/task.py`
+- `backend/app/services/graphiti_builder.py`
+- `backend/app/api/graph.py`
+- `backend/app/api/simulation.py`
+- `backend/app/api/report.py`
+- `backend/app/services/model_registry.py`
+- `frontend/src/api/index.js`
+- `frontend/src/api/graph.js`
+- `frontend/src/api/simulation.js`
+- `frontend/src/api/report.js`
+- `frontend/src/views/MainView.vue`
+- `frontend/src/views/SimulationView.vue`
+- `frontend/src/views/SimulationRunView.vue`
+- `frontend/src/views/ReportView.vue`
+- `frontend/src/views/InteractionView.vue`
+- `frontend/src/components/Step2EnvSetup.vue`
+- `frontend/src/components/Step3Simulation.vue`
+- `frontend/src/components/Step4Report.vue`
+- `frontend/src/components/Step5Interaction.vue`
+- plus previously-started dark-theme files completed in the same pass:
+  - `frontend/src/components/GraphPanel.vue`
+  - `frontend/src/components/Step1GraphBuild.vue`
+  - `frontend/src/views/Process.vue`
+
+### Verification
+- `python3 -m py_compile` passed for edited backend files
+- `npm run build` passed in `frontend/`
+
+### Residual Limits
+- Ontology generation stop is frontend abort only; that request still does not create a backend task ID
+- Graph/prep/report cancellation is cooperative; an in-flight LLM call stops at the next cancellation checkpoint
+
+---
+
+## 12. Next Priorities (TODO)
+### Recommended Order
+1. Frontend recovery after backend restarts — auto-reattach to active report/simulation state
+2. Report interview optimization — fewer questions, better single-platform mode
+3. Entity label deduplication in graph-to-persona pipeline
+4. Model performance tracking — latency/token counts per model per step
+5. DOCX and JSON seed data support
+6. Anthropic adapter — wrap Anthropic SDK behind OpenAI-compatible interface
+
+### Open Items
+- [ ] Frontend recovery after backend restarts
+- [ ] Report interview optimization
+- [ ] Entity label deduplication in graph-to-persona pipeline
+- [ ] Model performance tracking
+- [ ] DOCX and JSON seed data support
+- [ ] Anthropic adapter

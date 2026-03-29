@@ -14,6 +14,12 @@ import requests
 from zep_cloud.client import Zep
 
 from ..config import Config
+from ..utils.graph_normalization import (
+    canonicalize_entity_name,
+    choose_stronger_entity_type,
+    infer_entity_type,
+    preferred_display_name,
+)
 from ..utils.logger import get_logger
 from ..utils.zep_paging import fetch_all_nodes, fetch_all_edges
 
@@ -124,17 +130,69 @@ class ZepEntityReader:
         columns = results[0]["columns"]
         return [dict(zip(columns, row["row"])) for row in results[0]["data"]]
 
-    def _entity_type_from_local_node(self, labels: List[str], attributes: Dict[str, Any]) -> str:
-        custom_labels = [label for label in labels if label not in ["Entity", "Node"]]
-        if custom_labels:
-            return custom_labels[0]
+    def _entity_type_from_local_node(
+        self,
+        labels: List[str],
+        attributes: Dict[str, Any],
+        name: str = "",
+        summary: str = "",
+    ) -> str:
+        return infer_entity_type(labels, attributes, name=name, summary=summary)
 
-        for key in ("entity_type", "type", "category", "kind"):
-            value = attributes.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
+    def _merge_duplicate_entities(self, entities: List[EntityNode]) -> List[EntityNode]:
+        merged: Dict[str, EntityNode] = {}
+        name_sets: Dict[str, set[str]] = {}
 
-        return "Entity"
+        for entity in entities:
+            entity_type = entity.get_entity_type() or "Entity"
+            canonical_name = canonicalize_entity_name(entity.name)
+            merge_key = canonical_name if canonical_name and len(canonical_name) >= 2 else entity.uuid
+
+            existing = merged.get(merge_key)
+            if existing is None:
+                merged[merge_key] = entity
+                name_sets[merge_key] = {entity.name}
+                continue
+
+            name_sets[merge_key].add(entity.name)
+            stronger_type = choose_stronger_entity_type(existing.get_entity_type() or "Entity", entity_type)
+            existing.attributes["entity_type"] = stronger_type
+            if stronger_type != "Entity":
+                existing.labels = [stronger_type, *[label for label in existing.labels if label != stronger_type]]
+            existing.labels = list(dict.fromkeys([*existing.labels, *entity.labels]))
+            if len(entity.summary or "") > len(existing.summary or ""):
+                existing.summary = entity.summary
+
+            merged_edges = {
+                (
+                    edge.get("direction"),
+                    edge.get("edge_name"),
+                    edge.get("fact"),
+                    edge.get("source_node_uuid"),
+                    edge.get("target_node_uuid"),
+                ): edge
+                for edge in existing.related_edges
+            }
+            for edge in entity.related_edges:
+                edge_key = (
+                    edge.get("direction"),
+                    edge.get("edge_name"),
+                    edge.get("fact"),
+                    edge.get("source_node_uuid"),
+                    edge.get("target_node_uuid"),
+                )
+                merged_edges.setdefault(edge_key, edge)
+            existing.related_edges = list(merged_edges.values())
+
+            merged_nodes = {node.get("uuid") or node.get("name"): node for node in existing.related_nodes}
+            for node in entity.related_nodes:
+                merged_nodes.setdefault(node.get("uuid") or node.get("name"), node)
+            existing.related_nodes = list(merged_nodes.values())
+
+        for key, entity in merged.items():
+            entity.name = preferred_display_name(name_sets.get(key, {entity.name}))
+
+        return list(merged.values())
     
     def _call_with_retry(
         self, 
@@ -347,7 +405,12 @@ class ZepEntityReader:
             # Legacy Zep graphs rely on custom labels beyond Entity/Node.
             # Local Graphiti graphs may only have the Entity label, so keep those as generic Entity nodes.
             custom_labels = [l for l in labels if l not in ["Entity", "Node"]]
-            local_entity_type = self._entity_type_from_local_node(labels, node.get("attributes", {})) if self._is_local_graph(graph_id) else None
+            local_entity_type = self._entity_type_from_local_node(
+                labels,
+                node.get("attributes", {}),
+                name=node.get("name", ""),
+                summary=node.get("summary", ""),
+            ) if self._is_local_graph(graph_id) else None
             
             if not custom_labels and not local_entity_type:
                 # Only default tags, skip
@@ -418,7 +481,10 @@ class ZepEntityReader:
                 entity.related_nodes = related_nodes
             
             filtered_entities.append(entity)
-        
+
+        filtered_entities = self._merge_duplicate_entities(filtered_entities)
+        entity_types_found = {entity.get_entity_type() or "Entity" for entity in filtered_entities}
+
         logger.info(f"Filtering complete: total nodes {total_count}, matching {len(filtered_entities)}, Entity type: {entity_types_found}")
         
         return FilteredEntities(
@@ -457,7 +523,12 @@ class ZepEntityReader:
 
                 base = node_rows[0]
                 labels = base.get("labels") or ["Entity"]
-                entity_type = self._entity_type_from_local_node(labels, {})
+                entity_type = self._entity_type_from_local_node(
+                    labels,
+                    {},
+                    name=base.get("name", ""),
+                    summary=base.get("summary", ""),
+                )
                 edge_rows = self._neo4j(
                     "MATCH (n:Entity {group_id: $gid, uuid: $uuid})-[r]-(m:Entity {group_id: $gid}) "
                     "RETURN type(r) AS edge_name, coalesce(r.fact, '') AS fact, "

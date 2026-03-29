@@ -2623,4 +2623,329 @@ watch(() => props.simulationId, (newId) => {
   border-color: #252525;
   background: #252525;
 }
+
+/* Interaction workspace dark-theme pass */
+.interaction-panel {
+  --interaction-bg: #0d0d0d;
+  --interaction-surface: #141414;
+  --interaction-surface-2: #1a1a1a;
+  --interaction-border: #262626;
+  --interaction-border-strong: #343434;
+  --interaction-text: #e8e8e8;
+  --interaction-text-soft: #b4b4b4;
+  --interaction-text-muted: #868686;
+  --interaction-accent: #ff5722;
+  --interaction-accent-soft: rgba(255, 87, 34, 0.12);
+  --interaction-success-soft: rgba(102, 187, 106, 0.12);
+}
+
+.interaction-panel .left-panel.report-style,
+.interaction-panel .right-panel,
+.interaction-panel .chat-container,
+.interaction-panel .survey-container {
+  background: var(--interaction-bg);
+}
+
+.interaction-panel .report-tag {
+  background: #050505;
+  color: #f5f5f5;
+  border: 1px solid var(--interaction-border);
+}
+
+.interaction-panel .main-title,
+.interaction-panel .section-title,
+.interaction-panel .generated-content,
+.interaction-panel .generated-content :deep(.md-h2),
+.interaction-panel .generated-content :deep(.md-h3),
+.interaction-panel .generated-content :deep(.md-h4),
+.interaction-panel .generated-content :deep(.md-p),
+.interaction-panel .generated-content :deep(strong),
+.interaction-panel .action-bar-title,
+.interaction-panel .tools-card-name,
+.interaction-panel .profile-card-name,
+.interaction-panel .agent-name,
+.interaction-panel .tool-name,
+.interaction-panel .sender-name,
+.interaction-panel .message-text,
+.interaction-panel .setup-section .section-header .section-title,
+.interaction-panel .checkbox-name,
+.interaction-panel .results-title,
+.interaction-panel .result-name,
+.interaction-panel .result-answer {
+  color: var(--interaction-text);
+}
+
+.interaction-panel .sub-title,
+.interaction-panel .report-id,
+.interaction-panel .action-bar-subtitle,
+.interaction-panel .tool-desc,
+.interaction-panel .profile-card-meta,
+.interaction-panel .agent-role,
+.interaction-panel .message-time,
+.interaction-panel .selection-count,
+.interaction-panel .checkbox-role,
+.interaction-panel .results-count,
+.interaction-panel .result-role,
+.interaction-panel .result-question,
+.interaction-panel :deep(.md-h5),
+.interaction-panel .generated-content :deep(.md-quote),
+.interaction-panel .chat-messages :deep(.md-quote),
+.interaction-panel .result-answer :deep(.md-quote) {
+  color: var(--interaction-text-muted);
+}
+
+.interaction-panel .header-divider,
+.interaction-panel :deep(.md-hr),
+.interaction-panel .generated-content :deep(.md-h2) {
+  border-color: var(--interaction-border);
+  background: var(--interaction-border);
+}
+
+.interaction-panel .report-section-item {
+  gap: 16px;
+  padding: 18px 18px 16px;
+  background: var(--interaction-surface);
+  border: 1px solid var(--interaction-border);
+  border-radius: 14px;
+}
+
+.interaction-panel .report-section-item.is-active {
+  border-color: rgba(255, 87, 34, 0.5);
+  box-shadow: 0 0 0 1px rgba(255, 87, 34, 0.18);
+}
+
+.interaction-panel .report-section-item.is-completed {
+  background: #121612;
+  border-color: rgba(102, 187, 106, 0.26);
+}
+
+.interaction-panel .section-header-row {
+  margin: -6px -8px;
+  padding: 10px 12px;
+}
+
+.interaction-panel .section-header-row.clickable:hover {
+  background: #1b1b1b;
+}
+
+.interaction-panel .section-number,
+.interaction-panel .collapse-icon {
+  color: #9b9b9b;
+}
+
+.interaction-panel .report-section-item.is-pending .section-title,
+.interaction-panel .report-section-item.is-active .section-title,
+.interaction-panel .report-section-item.is-completed .section-title {
+  color: var(--interaction-text);
+}
+
+.interaction-panel .generated-content :deep(.md-quote) {
+  border-left-color: rgba(255, 87, 34, 0.45);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 12px 14px;
+  border-radius: 8px;
+}
+
+.interaction-panel .generated-content :deep(.code-block),
+.interaction-panel :deep(.inline-code) {
+  background: #101010;
+  border-color: var(--interaction-border-strong);
+  color: #dadada;
+}
+
+.interaction-panel .action-bar,
+.interaction-panel .report-agent-tools-card,
+.interaction-panel .agent-profile-card,
+.interaction-panel .survey-setup,
+.interaction-panel .survey-results {
+  background: var(--interaction-surface);
+  border-color: var(--interaction-border);
+}
+
+.interaction-panel .action-bar {
+  background-image: none;
+}
+
+.interaction-panel .action-bar-icon,
+.interaction-panel .tab-pill.active svg,
+.interaction-panel .survey-pill.active svg,
+.interaction-panel .send-btn svg {
+  color: inherit;
+}
+
+.interaction-panel .tab-divider,
+.interaction-panel .dropdown-header,
+.interaction-panel .chat-input-area,
+.interaction-panel .survey-setup,
+.interaction-panel .target-selector,
+.interaction-panel .interaction-header {
+  border-color: var(--interaction-border);
+}
+
+.interaction-panel .tab-pill,
+.interaction-panel .tab-btn,
+.interaction-panel .target-option,
+.interaction-panel .action-link {
+  background: #1b1b1b;
+  border-color: var(--interaction-border);
+  color: var(--interaction-text-soft);
+}
+
+.interaction-panel .tab-pill:hover,
+.interaction-panel .tab-btn:hover,
+.interaction-panel .target-option:hover,
+.interaction-panel .action-link:hover {
+  background: #232323;
+  border-color: var(--interaction-border-strong);
+  color: var(--interaction-text);
+}
+
+.interaction-panel .tab-pill.active,
+.interaction-panel .tab-btn.active,
+.interaction-panel .target-option.active,
+.interaction-panel .survey-pill.active {
+  background: var(--interaction-accent);
+  border-color: var(--interaction-accent);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(255, 87, 34, 0.18);
+}
+
+.interaction-panel .survey-pill {
+  background: rgba(102, 187, 106, 0.1);
+  border-color: rgba(102, 187, 106, 0.22);
+  color: #a5d6a7;
+}
+
+.interaction-panel .survey-pill:hover {
+  background: rgba(102, 187, 106, 0.16);
+  color: #c8e6c9;
+}
+
+.interaction-panel .tools-card-avatar,
+.interaction-panel .profile-card-avatar,
+.interaction-panel .agent-avatar,
+.interaction-panel .result-avatar {
+  background: linear-gradient(135deg, #2c3443 0%, #1d2430 100%);
+  box-shadow: none;
+}
+
+.interaction-panel .tools-card-toggle,
+.interaction-panel .profile-card-toggle,
+.interaction-panel .dropdown-menu,
+.interaction-panel .tool-item,
+.interaction-panel .profile-card-bio,
+.interaction-panel .message-text,
+.interaction-panel .typing-indicator,
+.interaction-panel .agent-checkbox,
+.interaction-panel .result-card,
+.interaction-panel .result-question {
+  background: var(--interaction-surface-2);
+  border-color: var(--interaction-border);
+  color: var(--interaction-text);
+  box-shadow: none;
+}
+
+.interaction-panel .tools-card-toggle:hover,
+.interaction-panel .profile-card-toggle:hover,
+.interaction-panel .dropdown-item:hover,
+.interaction-panel .tool-item:hover,
+.interaction-panel .agent-checkbox:hover {
+  background: #222;
+  border-color: var(--interaction-border-strong);
+}
+
+.interaction-panel .dropdown-item {
+  border-left-color: transparent;
+}
+
+.interaction-panel .dropdown-item:hover {
+  border-left-color: var(--interaction-accent);
+}
+
+.interaction-panel .chat-message.user .message-avatar,
+.interaction-panel .chat-message.user .message-text,
+.interaction-panel .send-btn,
+.interaction-panel .survey-submit-btn {
+  background: var(--interaction-accent);
+  color: #fff;
+}
+
+.interaction-panel .chat-message.user .message-text {
+  border: 1px solid rgba(255, 87, 34, 0.25);
+}
+
+.interaction-panel .chat-message.assistant .message-avatar {
+  background: #232323;
+  color: #d5d5d5;
+}
+
+.interaction-panel .chat-message.assistant .message-text,
+.interaction-panel .typing-indicator {
+  background: #1a1a1a;
+  color: var(--interaction-text);
+}
+
+.interaction-panel .message-text :deep(.md-oli)::before {
+  color: currentColor;
+}
+
+.interaction-panel .chat-input,
+.interaction-panel .survey-input {
+  background: #111;
+  border-color: var(--interaction-border);
+  color: var(--interaction-text);
+}
+
+.interaction-panel .chat-input:focus,
+.interaction-panel .survey-input:focus {
+  border-color: rgba(255, 87, 34, 0.55);
+  box-shadow: 0 0 0 3px rgba(255, 87, 34, 0.12);
+}
+
+.interaction-panel .chat-input:disabled,
+.interaction-panel .send-btn:disabled,
+.interaction-panel .survey-submit-btn:disabled {
+  background: #1a1a1a;
+  color: #707070;
+  border-color: var(--interaction-border);
+}
+
+.interaction-panel .agent-checkbox.checked {
+  background: rgba(102, 187, 106, 0.08);
+  border-color: rgba(102, 187, 106, 0.36);
+}
+
+.interaction-panel .checkbox-avatar,
+.interaction-panel .checkbox-indicator,
+.interaction-panel .profile-card-profession {
+  background: #222;
+  border-color: var(--interaction-border);
+  color: var(--interaction-text-soft);
+}
+
+.interaction-panel .agent-checkbox.checked .checkbox-avatar,
+.interaction-panel .agent-checkbox.checked .checkbox-indicator {
+  background: #43a047;
+  border-color: #43a047;
+  color: #fff;
+}
+
+.interaction-panel .action-divider {
+  color: var(--interaction-border-strong);
+}
+
+.interaction-panel .result-card,
+.interaction-panel .result-question {
+  border-radius: 12px;
+}
+
+.interaction-panel .result-question {
+  background: #111;
+}
+
+.interaction-panel .empty-text,
+.interaction-panel .chat-empty,
+.interaction-panel .waiting-text {
+  color: var(--interaction-text-muted);
+}
 </style>

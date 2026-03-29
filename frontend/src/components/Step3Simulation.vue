@@ -1282,6 +1282,16 @@ onUnmounted(() => {
   border-bottom-color: #1e1e1e;
 }
 
+.actions-tooltip {
+  background: #111;
+  border: 1px solid #252525;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.actions-tooltip::before {
+  border-bottom-color: #111;
+}
+
 .platform-status,
 .timeline-stats,
 .timeline-card,
@@ -1303,6 +1313,15 @@ onUnmounted(() => {
   border-color: #1b3a1b;
 }
 
+.timeline-header {
+  border-bottom-color: #1e1e1e;
+}
+
+.timeline-marker {
+  background: #0d0d0d;
+  border-color: #444;
+}
+
 .platform-name,
 .stat-value,
 .total-count,
@@ -1310,6 +1329,47 @@ onUnmounted(() => {
 .content-text,
 .action-btn.secondary {
   color: #e0e0e0;
+}
+
+.stat-value,
+.platform-name,
+.agent-name,
+.content-text.main-text,
+.content-text,
+.quote-text,
+.repost-content,
+.liked-content,
+.voted-content,
+.time-tag,
+.search-query,
+.detail-value,
+.follow-label,
+.like-label,
+.vote-label,
+.search-label,
+.search-query,
+.repost-label,
+.quote-label {
+  color: #e6e6e6;
+}
+
+.card-header {
+  border-bottom-color: #2a2a2a;
+}
+
+.timeline-card {
+  background: #171717;
+  border: 1px solid #353535;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.32);
+}
+
+.timeline-card:hover {
+  border-color: #4a4a4a;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4);
+}
+
+.platform-status {
+  background: #131313;
 }
 
 .breakdown-item.twitter,
@@ -1334,8 +1394,22 @@ onUnmounted(() => {
 .tooltip-title,
 .timeline-stats,
 .header-meta,
-.log-header {
+.log-header,
+.platform-indicator,
+.quote-header,
+.repost-info,
+.like-info,
+.search-info,
+.follow-info,
+.vote-info,
+.idle-info,
+.comment-context {
   color: #888;
+}
+
+.tooltip-action {
+  background: #1f1f1f;
+  color: #f2f2f2;
 }
 
 .action-btn.primary {
@@ -1363,5 +1437,62 @@ onUnmounted(() => {
   background: #1e1e1e;
   border-color: #2a2a2a;
   color: #bbb;
+}
+
+.badge-post {
+  background: rgba(255, 87, 34, 0.16);
+  border-color: rgba(255, 87, 34, 0.35);
+  color: #ffb08f;
+}
+
+.badge-comment {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: #3a3a3a;
+  color: #d6d6d6;
+}
+
+.badge-action {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: #333;
+  color: #c7c7c7;
+}
+
+.badge-meta {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: #2f2f2f;
+  color: #999;
+}
+
+.quoted-block,
+.repost-content {
+  background: #111;
+  border-color: #2a2a2a;
+}
+
+.search-query {
+  background: #202020;
+  color: #f0f0f0;
+}
+
+.avatar-placeholder {
+  background: #000;
+  color: #fff;
+  border: 1px solid #303030;
+}
+
+.card-footer {
+  color: #8a8a8a;
+}
+
+.waiting-state {
+  color: #9a9a9a;
+}
+
+.pulse-ring {
+  border-color: #3a3a3a;
+}
+
+.log-msg {
+  color: #d0d0d0;
 }
 </style>

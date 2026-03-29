@@ -228,7 +228,7 @@ class SimulationConfigGenerator:
         model_name: Optional[str] = None
     ):
         from .model_registry import ModelRegistry
-        _sel = ModelRegistry().get_active()
+        _sel = ModelRegistry().get_for_step("simulation")
         self.api_key = api_key or _sel.api_key
         self.base_url = base_url or _sel.base_url
         self.model_name = model_name or _sel.model_name

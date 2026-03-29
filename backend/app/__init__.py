@@ -9,7 +9,7 @@ import warnings
 # Set before all other imports
 warnings.filterwarnings("ignore", message=".*resource_tracker.*")
 
-from flask import Flask, request
+from flask import Flask, request, send_from_directory
 from flask_cors import CORS
 
 from .config import Config
@@ -18,6 +18,11 @@ from .utils.logger import setup_logger, get_logger
 
 def create_app(config_class=Config):
     """Flask application factory function"""
+    frontend_dist = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), '../../frontend/dist')
+    )
+    has_frontend_dist = os.path.isdir(frontend_dist)
+
     app = Flask(__name__)
     app.config.from_object(config_class)
     
@@ -73,9 +78,24 @@ def create_app(config_class=Config):
     @app.route('/health')
     def health():
         return {'status': 'ok', 'service': 'MiroFish Backend'}
+
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def serve_frontend(path):
+        """Serve the built SPA and support deep-link refreshes."""
+        if not has_frontend_dist:
+            return {
+                'status': 'frontend_not_built',
+                'message': 'Frontend dist not found. Run `npm run build` in frontend/ or use the Vite dev server.'
+            }, 503
+
+        candidate = os.path.join(frontend_dist, path)
+        if path and os.path.isfile(candidate):
+            return send_from_directory(frontend_dist, path)
+
+        return send_from_directory(frontend_dist, 'index.html')
     
     if should_log_startup:
         logger.info("MiroFish Backend startup complete")
     
     return app
-

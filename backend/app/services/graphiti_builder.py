@@ -38,6 +38,15 @@ except Exception:  # pragma: no cover - local non-Graphiti environments
             self.max_tokens = getattr(config, "max_tokens", 2048)
 
 from ..utils.logger import get_logger
+from ..utils.graph_normalization import (
+    canonical_relation_key,
+    canonicalize_entity_name,
+    choose_stronger_entity_type,
+    clean_display_name,
+    infer_entity_type,
+    normalize_edge_name,
+    preferred_display_name,
+)
 from ..models.task import TaskManager, TaskStatus, TaskCancelledError
 from .text_processor import TextProcessor
 
@@ -329,9 +338,9 @@ class TolerantOpenAIClient(LLMClient):
 
 
 def _get_graphiti_llm_config():
-    """Resolve Graphiti LLM config from the active ModelRegistry selection."""
+    """Resolve Graphiti LLM config from the graph-step ModelRegistry selection."""
     from .model_registry import ModelRegistry
-    sel = ModelRegistry().get_active()
+    sel = ModelRegistry().get_for_step("graph")
     return sel.base_url, sel.api_key, sel.model_name
 
 
@@ -595,17 +604,137 @@ class GraphitiBuilderService:
 
         return GraphInfo(graph_id=graph_id, node_count=node_count, edge_count=edge_count, entity_types=entity_types)
 
+    @staticmethod
+    def _node_merge_key(name: str, entity_type: str, uuid_value: str) -> str:
+        canonical_name = canonicalize_entity_name(name)
+        if not canonical_name or len(canonical_name) < 2:
+            return uuid_value
+        return canonical_name
+
+    def _merge_graph_view(self, nodes_data: List[Dict[str, Any]], edges_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+        merged_nodes: Dict[str, Dict[str, Any]] = {}
+        uuid_to_node_key: Dict[str, str] = {}
+
+        for node in nodes_data:
+            entity_type = infer_entity_type(
+                node.get("labels"),
+                node.get("attributes"),
+                node.get("name", ""),
+                node.get("summary", ""),
+            )
+            labels = [label for label in (node.get("labels") or []) if label not in ("Entity", "Node")]
+            if entity_type != "Entity" and entity_type not in labels:
+                labels = [entity_type, *labels]
+
+            node_key = self._node_merge_key(node.get("name", ""), entity_type, node.get("uuid", ""))
+            uuid_to_node_key[node.get("uuid", "")] = node_key
+
+            merged = merged_nodes.get(node_key)
+            if merged is None:
+                merged = {
+                    "uuid": node_key,
+                    "name": clean_display_name(node.get("name", "")) or "Unnamed",
+                    "labels": labels,
+                    "summary": node.get("summary", "") or "",
+                    "attributes": {"entity_type": entity_type, "original_uuid": node.get("uuid", "")},
+                    "created_at": node.get("created_at"),
+                    "_names": {node.get("name", "")},
+                    "_uuids": {node.get("uuid", "")},
+                }
+                merged_nodes[node_key] = merged
+            else:
+                merged["_names"].add(node.get("name", ""))
+                merged["_uuids"].add(node.get("uuid", ""))
+                strongest_type = choose_stronger_entity_type(
+                    merged["attributes"].get("entity_type", "Entity"),
+                    entity_type,
+                )
+                merged["attributes"]["entity_type"] = strongest_type
+                merged["labels"] = list(dict.fromkeys([
+                    *( [strongest_type] if strongest_type != "Entity" else [] ),
+                    *merged["labels"],
+                    *labels,
+                ]))
+                if len(node.get("summary", "") or "") > len(merged.get("summary", "") or ""):
+                    merged["summary"] = node.get("summary", "") or ""
+                if not merged.get("created_at") and node.get("created_at"):
+                    merged["created_at"] = node.get("created_at")
+
+        for merged in merged_nodes.values():
+            merged["name"] = preferred_display_name(merged.pop("_names", []))
+            merged["attributes"]["merged_count"] = len(merged.pop("_uuids", []))
+
+        aggregated_edges: Dict[tuple[str, str, str], Dict[str, Any]] = {}
+        for edge in edges_data:
+            src_key = uuid_to_node_key.get(edge.get("source_node_uuid", ""))
+            tgt_key = uuid_to_node_key.get(edge.get("target_node_uuid", ""))
+            if not src_key or not tgt_key:
+                continue
+
+            display_name = normalize_edge_name(edge.get("name", ""), edge.get("fact", ""))
+            relation_key = canonical_relation_key(
+                edge.get("name", ""),
+                edge.get("fact_type", ""),
+                edge.get("fact", ""),
+            )
+            bucket_key = (src_key, tgt_key, relation_key)
+            merged_edge = aggregated_edges.get(bucket_key)
+            if merged_edge is None:
+                aggregated_edges[bucket_key] = {
+                    "uuid": edge.get("uuid", ""),
+                    "name": display_name,
+                    "fact": edge.get("fact", ""),
+                    "fact_type": edge.get("fact_type", "") or edge.get("name", ""),
+                    "source_node_uuid": src_key,
+                    "target_node_uuid": tgt_key,
+                    "source_node_name": merged_nodes[src_key]["name"],
+                    "target_node_name": merged_nodes[tgt_key]["name"],
+                    "attributes": dict(edge.get("attributes") or {}),
+                    "created_at": edge.get("created_at"),
+                    "valid_at": edge.get("valid_at"),
+                    "invalid_at": edge.get("invalid_at"),
+                    "expired_at": edge.get("expired_at"),
+                    "episodes": list(edge.get("episodes") or []),
+                    "_facts": {edge.get("fact", "")} if edge.get("fact") else set(),
+                    "_count": 1,
+                }
+            else:
+                merged_edge["_count"] += 1
+                if edge.get("fact"):
+                    merged_edge["_facts"].add(edge.get("fact", ""))
+                if len(edge.get("fact", "") or "") > len(merged_edge.get("fact", "") or ""):
+                    merged_edge["fact"] = edge.get("fact", "") or merged_edge.get("fact", "")
+                    merged_edge["name"] = display_name
+                merged_edge["episodes"] = list(dict.fromkeys([*merged_edge["episodes"], *(edge.get("episodes") or [])]))
+
+        cleaned_edges: List[Dict[str, Any]] = []
+        for edge in aggregated_edges.values():
+            edge["attributes"]["merged_count"] = edge.pop("_count")
+            edge.pop("_facts", None)
+            cleaned_edges.append(edge)
+
+        return {
+            "nodes": list(merged_nodes.values()),
+            "edges": cleaned_edges,
+        }
+
     def get_graph_data(self, graph_id: str) -> Dict[str, Any]:
         try:
             node_rows = self._neo4j(
                 "MATCH (n:Entity {group_id: $gid}) "
-                "RETURN n.uuid AS uuid, n.name AS name, labels(n) AS labels, n.summary AS summary LIMIT 500",
+                "RETURN n.uuid AS uuid, n.name AS name, labels(n) AS labels, "
+                "coalesce(n.summary, '') AS summary, "
+                "coalesce(n.entity_type, n.type, n.category, n.kind, '') AS entity_type, "
+                "toString(n.created_at) AS created_at LIMIT 500",
                 {"gid": graph_id},
             )
             edge_rows = self._neo4j(
                 "MATCH (s:Entity {group_id: $gid})-[r]->(t:Entity {group_id: $gid}) "
-                "RETURN r.uuid AS uuid, type(r) AS name, r.fact AS fact, "
-                "s.uuid AS src, t.uuid AS tgt, s.name AS src_name, t.name AS tgt_name LIMIT 1000",
+                "RETURN r.uuid AS uuid, type(r) AS name, coalesce(r.fact, '') AS fact, "
+                "coalesce(r.fact_type, type(r)) AS fact_type, "
+                "s.uuid AS src, t.uuid AS tgt, s.name AS src_name, t.name AS tgt_name, "
+                "toString(r.created_at) AS created_at, toString(r.valid_at) AS valid_at, "
+                "toString(r.invalid_at) AS invalid_at, toString(r.expired_at) AS expired_at LIMIT 1000",
                 {"gid": graph_id},
             )
         except Exception as e:
@@ -618,8 +747,8 @@ class GraphitiBuilderService:
                 "name": r.get("name", ""),
                 "labels": [l for l in (r.get("labels") or []) if l != "Entity"],
                 "summary": r.get("summary", ""),
-                "attributes": {},
-                "created_at": None,
+                "attributes": {"entity_type": r.get("entity_type", "")} if r.get("entity_type") else {},
+                "created_at": r.get("created_at") or None,
             }
             for r in node_rows
         ]
@@ -628,26 +757,27 @@ class GraphitiBuilderService:
                 "uuid": r.get("uuid", ""),
                 "name": r.get("name", ""),
                 "fact": r.get("fact", ""),
-                "fact_type": r.get("name", ""),
+                "fact_type": r.get("fact_type", "") or r.get("name", ""),
                 "source_node_uuid": r.get("src", ""),
                 "target_node_uuid": r.get("tgt", ""),
                 "source_node_name": r.get("src_name", ""),
                 "target_node_name": r.get("tgt_name", ""),
                 "attributes": {},
-                "created_at": None,
-                "valid_at": None,
-                "invalid_at": None,
-                "expired_at": None,
+                "created_at": r.get("created_at") or None,
+                "valid_at": r.get("valid_at") or None,
+                "invalid_at": r.get("invalid_at") or None,
+                "expired_at": r.get("expired_at") or None,
                 "episodes": [],
             }
             for r in edge_rows
         ]
+        merged_graph = self._merge_graph_view(nodes_data, edges_data)
         return {
             "graph_id": graph_id,
-            "nodes": nodes_data,
-            "edges": edges_data,
-            "node_count": len(nodes_data),
-            "edge_count": len(edges_data),
+            "nodes": merged_graph["nodes"],
+            "edges": merged_graph["edges"],
+            "node_count": len(merged_graph["nodes"]),
+            "edge_count": len(merged_graph["edges"]),
         }
 
     def delete_graph(self, graph_id: str):

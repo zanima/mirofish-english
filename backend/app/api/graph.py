@@ -305,8 +305,8 @@ def build_graph():
         {
             "project_id": "proj_xxxx",  // Required, from Interface 1
             "graph_name": "Graph name",    // Optional
-            "chunk_size": 500,          // Optional, default 500
-            "chunk_overlap": 50         // Optional, default 50
+            "chunk_size": 1200,         // Optional, default from config/env
+            "chunk_overlap": 100        // Optional, default from config/env
         }
         
     Return:
@@ -375,10 +375,27 @@ def build_graph():
             project.graph_build_task_id = None
             project.error = None
         
-        # Get configuration
+        # Get configuration. Migrate old implicit defaults (500/50) to the current config defaults
+        # unless the caller explicitly sends chunk settings.
         graph_name = data.get('graph_name', project.name or 'MiroFish Graph')
-        chunk_size = data.get('chunk_size', project.chunk_size or Config.DEFAULT_CHUNK_SIZE)
-        chunk_overlap = data.get('chunk_overlap', project.chunk_overlap or Config.DEFAULT_CHUNK_OVERLAP)
+        requested_chunk_size = data.get('chunk_size')
+        requested_chunk_overlap = data.get('chunk_overlap')
+        saved_chunk_size = project.chunk_size
+        saved_chunk_overlap = project.chunk_overlap
+
+        if requested_chunk_size is not None:
+            chunk_size = requested_chunk_size
+        elif saved_chunk_size in (None, 500) and Config.DEFAULT_CHUNK_SIZE != 500:
+            chunk_size = Config.DEFAULT_CHUNK_SIZE
+        else:
+            chunk_size = saved_chunk_size or Config.DEFAULT_CHUNK_SIZE
+
+        if requested_chunk_overlap is not None:
+            chunk_overlap = requested_chunk_overlap
+        elif saved_chunk_overlap in (None, 50) and Config.DEFAULT_CHUNK_OVERLAP != 50:
+            chunk_overlap = Config.DEFAULT_CHUNK_OVERLAP
+        else:
+            chunk_overlap = saved_chunk_overlap or Config.DEFAULT_CHUNK_OVERLAP
         
         # Update project configuration
         project.chunk_size = chunk_size

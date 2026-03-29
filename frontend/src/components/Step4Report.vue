@@ -5247,4 +5247,423 @@ watch(() => props.reportId, (newId) => {
   background: #ff5722;
   color: #fff;
 }
+
+/* Report workspace dark-theme pass */
+.report-panel {
+  --report-bg: #0d0d0d;
+  --report-surface: #141414;
+  --report-surface-2: #1a1a1a;
+  --report-border: #262626;
+  --report-border-strong: #353535;
+  --report-text: #e8e8e8;
+  --report-text-soft: #b3b3b3;
+  --report-text-muted: #858585;
+  --report-accent: #ff5722;
+  --report-accent-soft: rgba(255, 87, 34, 0.12);
+  --report-success: #66bb6a;
+  --report-success-soft: rgba(102, 187, 106, 0.12);
+  --report-code: #101010;
+}
+
+.report-panel .left-panel.report-style,
+.report-panel .right-panel {
+  background: var(--report-bg);
+}
+
+.report-panel .report-header-block {
+  background: transparent;
+}
+
+.report-panel .report-tag {
+  background: #050505;
+  color: #f5f5f5;
+  border: 1px solid var(--report-border);
+}
+
+.report-panel .report-id,
+.report-panel .sub-title,
+.report-panel .metric-label,
+.report-panel .action-time,
+.report-panel .header-index,
+.report-panel .header-meta,
+.report-panel .wf-step-index,
+.report-panel .wf-step-meta,
+.report-panel .info-key,
+.report-panel .tag-num,
+.report-panel .result-size,
+.report-panel .outline-badge,
+.report-panel .elapsed-badge,
+.report-panel .status-message,
+.report-panel .workflow-empty,
+.report-panel .waiting-text,
+.report-panel .generated-content :deep(.md-quote) {
+  color: var(--report-text-muted);
+}
+
+.report-panel .main-title,
+.report-panel .section-title,
+.report-panel .generated-content,
+.report-panel .generated-content :deep(p),
+.report-panel .generated-content :deep(strong),
+.report-panel .generated-content :deep(.md-h2),
+.report-panel .generated-content :deep(.md-h3),
+.report-panel .generated-content :deep(.md-h4),
+.report-panel .wf-step-title,
+.report-panel .action-label,
+.report-panel .header-title,
+.report-panel .info-val,
+.report-panel .tag-title,
+.report-panel .result-tool,
+.report-panel .raw-preview,
+.report-panel .complete-banner,
+.report-panel .timeline-body {
+  color: var(--report-text);
+}
+
+.report-panel .header-divider,
+.report-panel .workflow-divider,
+.report-panel .timeline-footer,
+.report-panel .generated-content :deep(.md-h2) {
+  border-color: var(--report-border);
+  background: var(--report-border);
+}
+
+.report-panel .report-section-item {
+  gap: 16px;
+  padding: 18px 18px 16px;
+  background: var(--report-surface);
+  border: 1px solid var(--report-border);
+  border-radius: 14px;
+}
+
+.report-panel .report-section-item.is-active {
+  border-color: rgba(255, 87, 34, 0.55);
+  box-shadow: 0 0 0 1px rgba(255, 87, 34, 0.18);
+}
+
+.report-panel .report-section-item.is-completed {
+  background: #121612;
+  border-color: rgba(102, 187, 106, 0.28);
+}
+
+.report-panel .section-header-row {
+  margin: -6px -8px;
+  padding: 10px 12px;
+}
+
+.report-panel .section-header-row.clickable:hover {
+  background: #1b1b1b;
+}
+
+.report-panel .section-number,
+.report-panel .collapse-icon {
+  color: #9b9b9b;
+}
+
+.report-panel .report-section-item.is-pending .section-title,
+.report-panel .report-section-item.is-active .section-title,
+.report-panel .report-section-item.is-completed .section-title {
+  color: var(--report-text);
+}
+
+.report-panel .generated-content :deep(.md-h2),
+.report-panel .generated-content :deep(.md-h3),
+.report-panel .generated-content :deep(.md-h4) {
+  color: #f1f1f1;
+}
+
+.report-panel .generated-content :deep(.md-quote) {
+  border-left-color: rgba(255, 87, 34, 0.45);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 12px 14px;
+  border-radius: 8px;
+}
+
+.report-panel .generated-content :deep(.code-block),
+.report-panel .result-raw pre,
+.report-panel .llm-content pre,
+.report-panel .tool-params pre {
+  background: var(--report-code);
+  border-color: var(--report-border-strong);
+  color: #d6d6d6;
+}
+
+.report-panel .loading-text,
+.report-panel .loading-state {
+  color: var(--report-text-soft);
+}
+
+.report-panel .waiting-ring {
+  border-color: var(--report-border-strong);
+}
+
+.report-panel .workflow-overview {
+  padding-top: 18px;
+}
+
+.report-panel .metric-pill {
+  background: #171717;
+  border-color: var(--report-border);
+  color: var(--report-text-soft);
+}
+
+.report-panel .metric-pill.pill--processing {
+  background: var(--report-accent-soft);
+  border-color: rgba(255, 87, 34, 0.45);
+  color: #ffb39b;
+}
+
+.report-panel .metric-pill.pill--completed {
+  background: var(--report-success-soft);
+  border-color: rgba(102, 187, 106, 0.42);
+  color: #a5d6a7;
+}
+
+.report-panel .metric-pill.pill--pending {
+  background: transparent;
+  border-color: #3a3a3a;
+  color: #8a8a8a;
+}
+
+.report-panel .wf-step,
+.report-panel .timeline-item {
+  background: var(--report-surface);
+  border-color: var(--report-border);
+  border-radius: 12px;
+}
+
+.report-panel .wf-step:hover,
+.report-panel .timeline-item:hover {
+  background: var(--report-surface-2);
+  border-color: var(--report-border-strong);
+}
+
+.report-panel .wf-step--active,
+.report-panel .timeline-item.node--active {
+  background: rgba(255, 87, 34, 0.06);
+  border-color: rgba(255, 87, 34, 0.5);
+}
+
+.report-panel .wf-step--done,
+.report-panel .timeline-item.node--done {
+  background: rgba(102, 187, 106, 0.06);
+  border-color: rgba(102, 187, 106, 0.24);
+}
+
+.report-panel .wf-step--todo {
+  background: #101010;
+  border-color: #323232;
+}
+
+.report-panel .wf-step-dot,
+.report-panel .connector-dot {
+  border-color: #111;
+}
+
+.report-panel .wf-step-line,
+.report-panel .connector-line {
+  background: var(--report-border);
+}
+
+.report-panel .dot-active,
+.report-panel .wf-step--active .wf-step-dot {
+  background: var(--report-accent);
+  box-shadow: 0 0 0 3px rgba(255, 87, 34, 0.15);
+}
+
+.report-panel .dot-done,
+.report-panel .wf-step--done .wf-step-dot {
+  background: var(--report-success);
+}
+
+.report-panel .timeline-footer {
+  padding-top: 12px;
+}
+
+.report-panel .elapsed-badge,
+.report-panel .outline-badge,
+.report-panel .meta-tag,
+.report-panel .action-btn {
+  background: #1b1b1b;
+  border: 1px solid var(--report-border);
+  color: var(--report-text-soft);
+}
+
+.report-panel .action-btn:hover {
+  background: #242424;
+  border-color: var(--report-border-strong);
+  color: var(--report-text);
+}
+
+.report-panel .status-message.planning,
+.report-panel .section-tag.content-ready,
+.report-panel .final-answer-hint {
+  background: var(--report-accent-soft);
+  border-color: rgba(255, 87, 34, 0.4);
+  color: #ffb39b;
+}
+
+.report-panel .status-message.success,
+.report-panel .section-tag.completed,
+.report-panel .complete-banner {
+  background: var(--report-success-soft);
+  border-color: rgba(102, 187, 106, 0.36);
+  color: #a5d6a7;
+}
+
+.report-panel .section-tag,
+.report-panel .tool-badge {
+  background: #181818;
+  border-color: var(--report-border);
+  color: var(--report-text-soft);
+}
+
+.report-panel .tool-badge.tool-purple,
+.report-panel :deep(.insight-display .panel-header) {
+  background: rgba(139, 92, 246, 0.12);
+  border-color: rgba(139, 92, 246, 0.28);
+  color: #c4b5fd;
+}
+
+.report-panel .tool-badge.tool-blue,
+.report-panel :deep(.panorama-display .panel-header) {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.28);
+  color: #93c5fd;
+}
+
+.report-panel .tool-badge.tool-green,
+.report-panel :deep(.interview-display .interview-header) {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.28);
+  color: #86efac;
+}
+
+.report-panel .tool-badge.tool-orange,
+.report-panel :deep(.quick-search-display .panel-header) {
+  background: rgba(249, 115, 22, 0.12);
+  border-color: rgba(249, 115, 22, 0.28);
+  color: #fdba74;
+}
+
+.report-panel .tool-badge.tool-cyan {
+  background: rgba(6, 182, 212, 0.12);
+  border-color: rgba(6, 182, 212, 0.28);
+  color: #67e8f9;
+}
+
+.report-panel .tool-badge.tool-pink {
+  background: rgba(236, 72, 153, 0.12);
+  border-color: rgba(236, 72, 153, 0.28);
+  color: #f9a8d4;
+}
+
+.report-panel .tool-badge.tool-gray {
+  background: #1b1b1b;
+  border-color: var(--report-border);
+  color: var(--report-text-soft);
+}
+
+.report-panel .meta-tag.active {
+  background: rgba(59, 130, 246, 0.14);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.26);
+}
+
+.report-panel .meta-tag.final-answer {
+  background: rgba(102, 187, 106, 0.14);
+  color: #a5d6a7;
+  border-color: rgba(102, 187, 106, 0.26);
+}
+
+.report-panel .next-step-btn {
+  background: #202938;
+  color: #f5f5f5;
+  border: 1px solid #2e394d;
+}
+
+.report-panel .next-step-btn:hover {
+  background: #263247;
+}
+
+.report-panel .cancel-report-btn {
+  border-radius: 10px;
+}
+
+.report-panel :deep(.interview-display),
+.report-panel :deep(.insight-display),
+.report-panel :deep(.panorama-display),
+.report-panel :deep(.quick-search-display) {
+  background: #131313;
+  color: var(--report-text);
+  border-color: var(--report-border);
+}
+
+.report-panel :deep(.interview-display .stat-item),
+.report-panel :deep(.interview-display .agent-tab),
+.report-panel :deep(.interview-display .agent-profile),
+.report-panel :deep(.interview-display .selection-reason),
+.report-panel :deep(.interview-display .qa-pair),
+.report-panel :deep(.interview-display .quote-item),
+.report-panel :deep(.interview-display .summary-section),
+.report-panel :deep(.insight-display .fact-item),
+.report-panel :deep(.insight-display .entity-card),
+.report-panel :deep(.insight-display .entity-tag),
+.report-panel :deep(.insight-display .relation-item),
+.report-panel :deep(.insight-display .subquery-item),
+.report-panel :deep(.panorama-display .fact-item),
+.report-panel :deep(.panorama-display .entity-tag),
+.report-panel :deep(.quick-search-display .fact-item),
+.report-panel :deep(.quick-search-display .edge-item),
+.report-panel :deep(.quick-search-display .node-tag) {
+  background: #1a1a1a;
+  border-color: var(--report-border);
+  color: var(--report-text);
+}
+
+.report-panel :deep(.interview-display .qa-question),
+.report-panel :deep(.interview-display .qa-answer),
+.report-panel :deep(.quick-search-display .edge-source),
+.report-panel :deep(.quick-search-display .edge-target) {
+  background: #111;
+  border-color: var(--report-border-strong);
+  color: var(--report-text);
+}
+
+.report-panel :deep(.interview-display .header-title),
+.report-panel :deep(.interview-display .profile-name),
+.report-panel :deep(.interview-display .reason-content),
+.report-panel :deep(.interview-display .qa-text),
+.report-panel :deep(.interview-display .summary-content),
+.report-panel :deep(.insight-display .panel-title),
+.report-panel :deep(.insight-display .fact-content),
+.report-panel :deep(.insight-display .entity-card .entity-name),
+.report-panel :deep(.insight-display .entity-summary),
+.report-panel :deep(.insight-display .subquery-text),
+.report-panel :deep(.panorama-display .panel-title),
+.report-panel :deep(.panorama-display .fact-text),
+.report-panel :deep(.quick-search-display .panel-title),
+.report-panel :deep(.quick-search-display .fact-content),
+.report-panel :deep(.quick-search-display .node-name) {
+  color: var(--report-text);
+}
+
+.report-panel :deep(.interview-display .header-stats),
+.report-panel :deep(.interview-display .stat-label),
+.report-panel :deep(.interview-display .profile-role),
+.report-panel :deep(.interview-display .profile-bio),
+.report-panel :deep(.interview-display .reason-label),
+.report-panel :deep(.interview-display .qa-sender),
+.report-panel :deep(.interview-display .placeholder-text),
+.report-panel :deep(.interview-display .summary-content em),
+.report-panel :deep(.insight-display .panel-count),
+.report-panel :deep(.insight-display .entity-card .entity-type),
+.report-panel :deep(.insight-display .entity-card .entity-fact-count),
+.report-panel :deep(.panorama-display .panel-count),
+.report-panel :deep(.panorama-display .fact-time),
+.report-panel :deep(.quick-search-display .panel-count),
+.report-panel :deep(.quick-search-display .node-type),
+.report-panel :deep(.quick-search-display .edge-label) {
+  color: var(--report-text-muted);
+}
 </style>
