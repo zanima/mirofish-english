@@ -96,16 +96,33 @@ def fetch_url(url: str) -> Dict[str, str]:
         return {"url": url, "title": "", "text": "", "error": str(exc)}
 
 
-def fetch_urls(urls: List[str]) -> List[Dict[str, str]]:
-    """Fetch multiple URLs."""
-    results = []
+def fetch_urls(urls: List[str], max_workers: int = 5) -> List[Dict[str, str]]:
+    """Fetch multiple URLs in parallel using ThreadPoolExecutor."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    clean_urls = []
     for url in urls:
         url = url.strip()
         if not url:
             continue
         if not url.startswith(("http://", "https://")):
             url = "https://" + url
-        results.append(fetch_url(url))
+        clean_urls.append(url)
+
+    if not clean_urls:
+        return []
+
+    results = []
+    with ThreadPoolExecutor(max_workers=min(max_workers, len(clean_urls))) as executor:
+        future_to_url = {executor.submit(fetch_url, url): url for url in clean_urls}
+        for future in as_completed(future_to_url):
+            try:
+                results.append(future.result())
+            except Exception as exc:
+                url = future_to_url[future]
+                logger.warning("Parallel fetch failed for %s: %s", url, exc)
+                results.append({"url": url, "title": "", "text": "", "error": str(exc)})
+
     return results
 
 

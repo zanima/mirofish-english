@@ -568,8 +568,9 @@ const initProject = async () => {
 const handleNewProject = async () => {
   const pending = getPendingUpload()
   
-  if (!pending.isPending || pending.files.length === 0) {
-    error.value = 'No pending files were found. Please return to the home page and try again.'
+  const hasSource = pending.files.length > 0 || (pending.urls && pending.urls.trim()) || (pending.searchQuery && pending.searchQuery.trim())
+  if (!pending.isPending || !hasSource) {
+    error.value = 'No pending data found. Please return to the home page and provide files, URLs, or a search query.'
     loading.value = false
     return
   }

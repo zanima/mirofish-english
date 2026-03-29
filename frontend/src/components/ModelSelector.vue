@@ -14,67 +14,112 @@
         <button class="close-btn" @click="isOpen = false">&times;</button>
       </div>
 
+      <!-- Tab bar: Global / Per-Step -->
+      <div class="tab-bar">
+        <button class="tab-btn" :class="{ active: activeTab === 'global' }" @click="activeTab = 'global'">Global</button>
+        <button class="tab-btn" :class="{ active: activeTab === 'steps' }" @click="activeTab = 'steps'; loadStepOverrides()">Per-Step</button>
+      </div>
+
       <!-- Loading state -->
       <div v-if="modelState.loading" class="dropdown-loading">
         Loading models...
       </div>
 
-      <!-- Provider list -->
-      <div v-else class="provider-list">
-        <div
-          v-for="provider in modelState.providers"
-          :key="provider.id"
-          class="provider-group"
-        >
-          <div class="provider-header">
-            <span class="provider-dot" :class="provider.api_key_configured ? 'dot-green' : 'dot-red'"></span>
-            <span class="provider-name">{{ provider.name }}</span>
-            <span class="provider-type">{{ provider.type }}</span>
-          </div>
+      <!-- GLOBAL TAB -->
+      <template v-if="activeTab === 'global' && !modelState.loading">
+        <!-- Provider list -->
+        <div class="provider-list">
+          <div
+            v-for="provider in modelState.providers"
+            :key="provider.id"
+            class="provider-group"
+          >
+            <div class="provider-header">
+              <span class="provider-dot" :class="provider.api_key_configured ? 'dot-green' : 'dot-red'"></span>
+              <span class="provider-name">{{ provider.name }}</span>
+              <span class="provider-type">{{ provider.type }}</span>
+            </div>
 
-          <div v-if="!provider.api_key_configured && provider.type === 'cloud'" class="provider-disabled">
-            API key not configured
-          </div>
+            <div v-if="!provider.api_key_configured && provider.type === 'cloud'" class="provider-disabled">
+              API key not configured
+            </div>
 
-          <div v-else class="model-list">
-            <button
-              v-for="model in provider.models"
-              :key="model.id"
-              class="model-item"
-              :class="{
-                active: modelState.active.provider_id === provider.id && modelState.active.model_name === model.id,
-                testing: testingModel === `${provider.id}/${model.id}`,
-              }"
-              @click="handleSelect(provider, model)"
-            >
-              <span class="model-name">{{ model.name || model.id }}</span>
-              <span
-                v-if="modelState.active.provider_id === provider.id && modelState.active.model_name === model.id"
-                class="active-check"
-              >&#10003;</span>
-            </button>
+            <div v-else class="model-list">
+              <button
+                v-for="model in provider.models"
+                :key="model.id"
+                class="model-item"
+                :class="{
+                  active: modelState.active.provider_id === provider.id && modelState.active.model_name === model.id,
+                  testing: testingModel === `${provider.id}/${model.id}`,
+                }"
+                @click="handleSelect(provider, model)"
+              >
+                <span class="model-name">{{ model.name || model.id }}</span>
+                <span class="model-cost" v-if="costCache[`${provider.id}/${model.id}`]">
+                  {{ formatCost(costCache[`${provider.id}/${model.id}`]) }}
+                </span>
+                <span
+                  v-if="modelState.active.provider_id === provider.id && modelState.active.model_name === model.id"
+                  class="active-check"
+                >&#10003;</span>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Test button -->
-      <div class="dropdown-footer">
-        <button
-          class="test-btn"
-          :disabled="!modelState.active.model_name || modelState.testing"
-          @click="handleTest"
-        >
-          {{ modelState.testing ? 'Testing...' : 'Test Connection' }}
-        </button>
-        <div v-if="modelState.testResult" class="test-result" :class="modelState.testResult.status">
-          <template v-if="modelState.testResult.status === 'ok'">
-            OK ({{ modelState.testResult.latency_ms }}ms)
-          </template>
-          <template v-else>
-            {{ modelState.testResult.error || 'Failed' }}
-          </template>
+        <!-- Footer -->
+        <div class="dropdown-footer">
+          <button
+            class="test-btn"
+            :disabled="!modelState.active.model_name || modelState.testing"
+            @click="handleTest"
+          >
+            {{ modelState.testing ? 'Testing...' : 'Test Connection' }}
+          </button>
+          <div v-if="modelState.testResult" class="test-result" :class="modelState.testResult.status">
+            <template v-if="modelState.testResult.status === 'ok'">
+              OK ({{ modelState.testResult.latency_ms }}ms)
+            </template>
+            <template v-else>
+              {{ modelState.testResult.error || 'Failed' }}
+            </template>
+          </div>
         </div>
-      </div>
+      </template>
+
+      <!-- PER-STEP TAB -->
+      <template v-if="activeTab === 'steps' && !modelState.loading">
+        <div class="step-list">
+          <div v-for="step in stepOverrides.steps" :key="step" class="step-row">
+            <div class="step-info">
+              <span class="step-name-label">{{ stepLabels[step] || step }}</span>
+              <span class="step-model">
+                {{ stepOverrides.step_overrides[step]
+                  ? `${stepOverrides.step_overrides[step].provider_id} / ${stepOverrides.step_overrides[step].model_name}`
+                  : 'Global default' }}
+              </span>
+            </div>
+            <div class="step-actions">
+              <select
+                class="step-select"
+                :value="stepSelectValue(step)"
+                @change="handleStepChange(step, $event)"
+              >
+                <option value="">Global default</option>
+                <optgroup v-for="provider in modelState.providers" :key="provider.id" :label="provider.name">
+                  <option
+                    v-for="model in provider.models"
+                    :key="model.id"
+                    :value="`${provider.id}|${model.id}|${provider.base_url}`"
+                    :disabled="!provider.api_key_configured && provider.type === 'cloud'"
+                  >{{ model.name || model.id }}</option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
+        </div>
+      </template>
 
       <!-- Error display -->
       <div v-if="modelState.error" class="dropdown-error">
@@ -88,7 +133,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
 import {
   state as modelState,
   activeLabel,
@@ -96,9 +141,26 @@ import {
   selectModel,
   testConnection,
 } from '../store/modelStore'
+import { getStepOverrides, setStepOverride, clearStepOverride, estimateCost } from '../api/models'
 
 const isOpen = ref(false)
 const testingModel = ref(null)
+const activeTab = ref('global')
+const costCache = reactive({})
+
+const stepOverrides = reactive({
+  steps: ['ontology', 'graph', 'simulation', 'report', 'interaction'],
+  step_overrides: {},
+  global_active: {},
+})
+
+const stepLabels = {
+  ontology: '01 Ontology',
+  graph: '02 Graph Build',
+  simulation: '03 Simulation',
+  report: '04 Report',
+  interaction: '05 Interaction',
+}
 
 const statusDotClass = computed(() => {
   if (!modelState.active.model_name) return 'dot-gray'
@@ -112,12 +174,34 @@ function toggleOpen() {
   if (isOpen.value && modelState.providers.length === 0) {
     fetchModels()
   }
+  // Pre-fetch cost estimates for all models
+  if (isOpen.value) {
+    fetchAllCosts()
+  }
+}
+
+async function fetchAllCosts() {
+  for (const provider of modelState.providers) {
+    for (const model of provider.models) {
+      const key = `${provider.id}/${model.id}`
+      if (costCache[key] !== undefined) continue
+      try {
+        const res = await estimateCost({ model_name: model.id, provider_id: provider.id })
+        costCache[key] = res.data
+      } catch { /* ignore */ }
+    }
+  }
+}
+
+function formatCost(data) {
+  if (!data) return ''
+  if (data.is_free) return 'FREE'
+  return `~$${data.total_cost_usd.toFixed(3)}`
 }
 
 async function handleSelect(provider, model) {
   const ok = await selectModel(provider.id, model.id, provider.base_url)
   if (ok) {
-    // auto-test after selection
     handleTest()
   }
 }
@@ -131,6 +215,36 @@ async function handleTest() {
     modelState.active.base_url,
   )
   testingModel.value = null
+}
+
+async function loadStepOverrides() {
+  try {
+    const res = await getStepOverrides()
+    Object.assign(stepOverrides, res.data)
+  } catch { /* ignore */ }
+}
+
+function stepSelectValue(step) {
+  const override = stepOverrides.step_overrides[step]
+  if (!override) return ''
+  return `${override.provider_id}|${override.model_name}|${override.base_url || ''}`
+}
+
+async function handleStepChange(step, event) {
+  const value = event.target.value
+  if (!value) {
+    // Clear override
+    try {
+      await clearStepOverride(step)
+      stepOverrides.step_overrides[step] = null
+    } catch { /* ignore */ }
+  } else {
+    const [provider_id, model_name, base_url] = value.split('|')
+    try {
+      await setStepOverride(step, { provider_id, model_name, base_url: base_url || undefined })
+      stepOverrides.step_overrides[step] = { provider_id, model_name, base_url }
+    } catch { /* ignore */ }
+  }
 }
 
 onMounted(() => {
@@ -201,8 +315,8 @@ onMounted(() => {
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  width: 320px;
-  max-height: 480px;
+  width: 360px;
+  max-height: 520px;
   overflow-y: auto;
   background: #1a1a1a;
   border: 1px solid #333;
@@ -235,6 +349,34 @@ onMounted(() => {
   padding: 0 4px;
 }
 .close-btn:hover { color: #fff; }
+
+/* Tab bar */
+.tab-bar {
+  display: flex;
+  border-bottom: 1px solid #333;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 8px 0;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #555;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover { color: #888; }
+.tab-btn.active {
+  color: #FF4500;
+  border-bottom-color: #FF4500;
+}
 
 .dropdown-loading {
   padding: 20px;
@@ -301,6 +443,7 @@ onMounted(() => {
   cursor: pointer;
   text-align: left;
   transition: background 0.15s;
+  gap: 8px;
 }
 
 .model-item:hover {
@@ -317,9 +460,19 @@ onMounted(() => {
   opacity: 0.5;
 }
 
+.model-cost {
+  font-size: 9px;
+  color: #666;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.model-item.active .model-cost { color: #FF4500; opacity: 0.7; }
+
 .active-check {
   color: #FF4500;
   font-size: 12px;
+  flex-shrink: 0;
 }
 
 .model-name {
@@ -374,5 +527,71 @@ onMounted(() => {
   font-size: 10px;
   color: #F44336;
   background: rgba(244, 67, 54, 0.1);
+}
+
+/* ── Per-Step Tab ── */
+.step-list {
+  padding: 4px 0;
+}
+
+.step-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #222;
+  gap: 8px;
+}
+
+.step-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.step-name-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #ccc;
+}
+
+.step-model {
+  font-size: 9px;
+  color: #666;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.step-actions {
+  flex-shrink: 0;
+}
+
+.step-select {
+  background: #222;
+  border: 1px solid #444;
+  color: #ccc;
+  padding: 4px 6px;
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  max-width: 160px;
+  border-radius: 0;
+}
+
+.step-select:focus {
+  border-color: #FF4500;
+  outline: none;
+}
+
+.step-select option {
+  background: #1a1a1a;
+  color: #ccc;
+}
+
+.step-select optgroup {
+  color: #888;
+  font-weight: 600;
 }
 </style>

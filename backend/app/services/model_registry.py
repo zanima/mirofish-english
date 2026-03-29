@@ -13,6 +13,7 @@ from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional, Any
 
 import requests as _requests
+from decimal import Decimal
 
 from ..utils.logger import get_logger
 
@@ -115,6 +116,35 @@ PROVIDER_CATALOG: Dict[str, Dict[str, Any]] = {
     },
 }
 
+# ── cost catalog (per 1M tokens) ──────────────────────────────────────────────
+
+COST_CATALOG = {
+    # Ollama local — no cost
+    "ollama": {"input": 0, "output": 0},
+    # NVIDIA NIM — free tier for most models
+    "nvidia": {"input": 0, "output": 0},
+    # OpenAI
+    "gpt-4o":         {"input": 2.50, "output": 10.00},
+    "gpt-4o-mini":    {"input": 0.15, "output": 0.60},
+    "gpt-4.1":        {"input": 2.00, "output": 8.00},
+    "gpt-4.1-mini":   {"input": 0.40, "output": 1.60},
+    # Anthropic
+    "claude-sonnet-4-20250514": {"input": 3.00, "output": 15.00},
+    "claude-haiku-4-5-20251001":  {"input": 0.80, "output": 4.00},
+    # Google Gemini
+    "gemini-2.5-flash": {"input": 0.15, "output": 0.60},
+    "gemini-2.5-pro":   {"input": 1.25, "output": 10.00},
+    # DeepSeek
+    "deepseek-chat":     {"input": 0.27, "output": 1.10},
+    "deepseek-reasoner": {"input": 0.55, "output": 2.19},
+    # Kimi
+    "kimi-k2-0711":      {"input": 0.00, "output": 0.00},
+    "moonshot-v1-auto":  {"input": 0.00, "output": 0.00},
+}
+
+# ── step names ────────────────────────────────────────────────────────────────
+STEP_NAMES = ["ontology", "graph", "simulation", "report", "interaction"]
+
 # ── registry singleton ───────────────────────────────────────────────────────
 
 _request_override: contextvars.ContextVar[Optional[ModelSelection]] = contextvars.ContextVar(
@@ -151,6 +181,9 @@ class ModelRegistry:
             api_key=Config.LLM_API_KEY or "ollama",
         )
 
+        # Per-step overrides: {"ontology": ModelSelection, "report": ModelSelection, ...}
+        self._step_overrides: Dict[str, ModelSelection] = {}
+
     # ── public API ───────────────────────────────────────────────────────
 
     def get_active(self) -> ModelSelection:
@@ -171,6 +204,52 @@ class ModelRegistry:
 
     def clear_request_override(self) -> None:
         _request_override.set(None)
+
+    # ── per-step overrides ───────────────────────────────────────────────
+
+    def set_step_override(self, step: str, selection: ModelSelection) -> None:
+        """Set a per-step model override."""
+        with self._active_lock:
+            self._step_overrides[step] = selection
+        logger.info("Step '%s' model override → %s / %s", step, selection.provider_id, selection.model_name)
+
+    def clear_step_override(self, step: str) -> None:
+        with self._active_lock:
+            self._step_overrides.pop(step, None)
+        logger.info("Step '%s' model override cleared", step)
+
+    def get_step_overrides(self) -> Dict[str, ModelSelection]:
+        with self._active_lock:
+            return dict(self._step_overrides)
+
+    def get_for_step(self, step: str) -> ModelSelection:
+        """Return step-specific model if overridden, else the global active model."""
+        with self._active_lock:
+            override = self._step_overrides.get(step)
+            if override is not None:
+                return override
+        return self.get_active()
+
+    # ── cost estimation ──────────────────────────────────────────────────
+
+    @staticmethod
+    def estimate_cost(model_name: str, provider_id: str, input_tokens: int = 50000, output_tokens: int = 20000) -> Dict[str, Any]:
+        """Estimate cost for a given model/provider. Returns per-run cost estimate."""
+        pricing = COST_CATALOG.get(model_name) or COST_CATALOG.get(provider_id, {"input": 0, "output": 0})
+        input_cost = (input_tokens / 1_000_000) * pricing["input"]
+        output_cost = (output_tokens / 1_000_000) * pricing["output"]
+        total = round(input_cost + output_cost, 4)
+        return {
+            "model_name": model_name,
+            "provider_id": provider_id,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "input_cost_usd": round(input_cost, 4),
+            "output_cost_usd": round(output_cost, 4),
+            "total_cost_usd": total,
+            "is_free": total == 0,
+            "pricing_per_1m": pricing,
+        }
 
     # ── provider helpers ─────────────────────────────────────────────────
 

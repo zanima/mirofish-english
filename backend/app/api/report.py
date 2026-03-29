@@ -1013,3 +1013,85 @@ def get_graph_statistics_tool():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== SSE Streaming Endpoint ==============
+
+@report_bp.route('/<report_id>/stream', methods=['GET'])
+def stream_report(report_id: str):
+    """
+    Server-Sent Events (SSE) endpoint for real-time report generation progress.
+
+    The frontend connects to this endpoint and receives events:
+      - event: section_complete  data: {section_index, section_title, content}
+      - event: progress          data: {status, progress, message}
+      - event: done              data: {report_id, status}
+      - event: error             data: {error}
+
+    The connection stays open until the report is completed or fails.
+    """
+    import json as _json
+    import time as _time
+    from flask import Response
+
+    def generate():
+        last_line = 0
+        done = False
+        while not done:
+            try:
+                # Read agent log incrementally
+                log_data = ReportManager.get_agent_log(report_id, from_line=last_line)
+                logs = log_data.get("logs", [])
+                total_lines = log_data.get("total_lines", 0)
+
+                for entry in logs:
+                    action = entry.get("action", "")
+                    if action == "section_complete":
+                        details = entry.get("details", {})
+                        payload = {
+                            "section_index": entry.get("section_index"),
+                            "section_title": entry.get("section_title", ""),
+                            "content": details.get("content", ""),
+                        }
+                        yield f"event: section_complete\ndata: {_json.dumps(payload, ensure_ascii=False)}\n\n"
+                    elif action == "report_complete":
+                        payload = {"report_id": report_id, "status": "completed"}
+                        yield f"event: done\ndata: {_json.dumps(payload)}\n\n"
+                        done = True
+                    elif action == "error":
+                        details = entry.get("details", {})
+                        payload = {"error": details.get("error", "Unknown error")}
+                        yield f"event: error\ndata: {_json.dumps(payload, ensure_ascii=False)}\n\n"
+                        done = True
+
+                last_line = total_lines
+
+                # Also check if the report is already done (in case we missed the log entry)
+                if not done:
+                    report = ReportManager.get_report(report_id)
+                    if report:
+                        if report.status == ReportStatus.COMPLETED:
+                            yield f"event: done\ndata: {_json.dumps({'report_id': report_id, 'status': 'completed'})}\n\n"
+                            done = True
+                        elif report.status == ReportStatus.FAILED:
+                            yield f"event: error\ndata: {_json.dumps({'error': report.error or 'Report generation failed'})}\n\n"
+                            done = True
+
+                if not done:
+                    _time.sleep(2)
+
+            except GeneratorExit:
+                done = True
+            except Exception as exc:
+                yield f"event: error\ndata: {_json.dumps({'error': str(exc)})}\n\n"
+                done = True
+
+    return Response(
+        generate(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no',
+            'Connection': 'keep-alive',
+        }
+    )

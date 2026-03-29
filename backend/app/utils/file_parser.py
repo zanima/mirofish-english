@@ -61,7 +61,7 @@ def _read_text_with_fallback(file_path: str) -> str:
 class FileParser:
     """File parser"""
     
-    SUPPORTED_EXTENSIONS = {'.pdf', '.md', '.markdown', '.txt'}
+    SUPPORTED_EXTENSIONS = {'.pdf', '.md', '.markdown', '.txt', '.csv'}
     
     @classmethod
     def extract_text(cls, file_path: str) -> str:
@@ -90,6 +90,8 @@ class FileParser:
             return cls._extract_from_md(file_path)
         elif suffix == '.txt':
             return cls._extract_from_txt(file_path)
+        elif suffix == '.csv':
+            return cls._extract_from_csv(file_path)
         
         raise ValueError(f"Cannot handle file format: {suffix}")
     
@@ -119,6 +121,40 @@ class FileParser:
     def _extract_from_txt(file_path: str) -> str:
         """Extract text from TXT, support automatic encoding detection"""
         return _read_text_with_fallback(file_path)
+
+    @staticmethod
+    def _extract_from_csv(file_path: str) -> str:
+        """
+        Extract text from CSV.
+        Renders the CSV as a markdown table (column headers + rows) so the
+        LLM can reason about the tabular data.
+        """
+        import csv
+        import io
+
+        raw_text = _read_text_with_fallback(file_path)
+        reader = csv.reader(io.StringIO(raw_text))
+        rows = list(reader)
+
+        if not rows:
+            return raw_text  # fallback: return raw text
+
+        headers = rows[0]
+        data_rows = rows[1:]
+
+        # Build markdown table
+        lines = []
+        lines.append('| ' + ' | '.join(headers) + ' |')
+        lines.append('| ' + ' | '.join(['---'] * len(headers)) + ' |')
+        for row in data_rows[:500]:  # limit to first 500 rows
+            # Pad row to match header count
+            padded = row + [''] * (len(headers) - len(row))
+            lines.append('| ' + ' | '.join(padded[:len(headers)]) + ' |')
+
+        if len(data_rows) > 500:
+            lines.append(f'\n... ({len(data_rows) - 500} more rows truncated)')
+
+        return '\n'.join(lines)
     
     @classmethod
     def extract_from_multiple(cls, file_paths: List[str]) -> str:

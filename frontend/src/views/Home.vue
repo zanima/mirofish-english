@@ -71,7 +71,7 @@
             <div v-if="activeSource === 'files'" class="console-section">
               <div class="console-header">
                 <span class="console-label">Upload Files</span>
-                <span class="console-meta">PDF, MD, TXT</span>
+                <span class="console-meta">PDF, MD, TXT, CSV</span>
               </div>
               <div
                 class="upload-zone"
@@ -85,7 +85,7 @@
                   ref="fileInput"
                   type="file"
                   multiple
-                  accept=".pdf,.md,.txt"
+                  accept=".pdf,.md,.txt,.csv"
                   @change="handleFileSelect"
                   style="display: none"
                   :disabled="loading"
@@ -188,6 +188,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import HistoryDatabase from '../components/HistoryDatabase.vue'
 import ModelSelector from '../components/ModelSelector.vue'
+import { setPendingUpload } from '../store/pendingUpload'
 
 const router = useRouter()
 
@@ -228,16 +229,14 @@ const handleDrop = (e) => {
 }
 
 const addFiles = (newFiles) => {
-  files.value.push(...newFiles.filter(f => ['pdf', 'md', 'txt'].includes(f.name.split('.').pop().toLowerCase())))
+  files.value.push(...newFiles.filter(f => ['pdf', 'md', 'txt', 'csv'].includes(f.name.split('.').pop().toLowerCase())))
 }
 const removeFile = (index) => { files.value.splice(index, 1) }
 
 const startSimulation = () => {
   if (!canSubmit.value || loading.value) return
-  import('../store/pendingUpload.js').then(({ setPendingUpload }) => {
-    setPendingUpload(files.value, formData.value.simulationRequirement, urlsInput.value, searchQuery.value)
-    router.push({ name: 'Process', params: { projectId: 'new' } })
-  })
+  setPendingUpload(files.value, formData.value.simulationRequirement, urlsInput.value, searchQuery.value)
+  router.push({ name: 'Process', params: { projectId: 'new' } })
 }
 </script>
 
