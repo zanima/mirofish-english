@@ -257,19 +257,72 @@
 
 ---
 
-## 12. Next Priorities (TODO)
+## 12. Frontend Recovery After Backend Restarts (DONE - 2026-03-29)
+**Goal:** Auto-reattach to active simulation/report state after backend restarts.
+
+### Implementation
+- New `useBackendHealth.js` composable for health monitoring (polls `/health` every 5s)
+- `Step3Simulation.vue`: Check existing run status on mount; skip start if already running; show completed state if done
+- `Step4Report.vue`: Check report status on mount; recover phase; improved error counting
+- Consecutive failure tracking with UI indicators
+
+### Files Modified
+- `frontend/src/composables/useBackendHealth.js` (new)
+- `frontend/src/components/Step3Simulation.vue`
+- `frontend/src/components/Step4Report.vue`
+
+---
+
+## 13. Report Interview Optimization (DONE - 2026-03-29)
+**Goal:** Reduce interview time by limiting questions and supporting single-platform mode.
+
+### Implementation
+- Config: `REPORT_INTERVIEW_PLATFORM` (default: `'reddit'`; values: `'reddit'`, `'twitter'`, `'both'`)
+- Config: `REPORT_INTERVIEW_MAX_QUESTIONS` (default: `3`)
+- Limit generated questions to max after generation
+- Pass platform filter to `SimulationRunner.interview_agents_batch()`
+- Fixed punctuation parsing to include English: `[。！？.!?]`
+
+### Files Modified
+- `backend/app/config.py`
+- `backend/app/services/zep_tools.py`
+
+---
+
+## 14. Entity Label Deduplication (DONE - 2026-03-29)
+**Status:** Already implemented. `ZepEntityReader.filter_defined_entities()` calls `_merge_duplicate_entities()` at line 485.
+
+---
+
+## 15. Model Performance Tracking (DONE - 2026-03-29)
+**Goal:** Track latency and token usage per model per call.
+
+### Implementation
+- `llm_client.py`: Capture latency + tokens in `_record_usage()` method
+- `ModelRegistry`: In-memory stats dict tracking calls, avg latency, total tokens
+- New API: `GET /api/models/stats` returns per-model performance
+- `ModelSelector.vue`: Display perf metrics when dropdown opens
+
+### Files Modified
+- `backend/app/utils/llm_client.py`
+- `backend/app/services/model_registry.py`
+- `backend/app/api/models.py`
+- `frontend/src/api/models.js`
+- `frontend/src/components/ModelSelector.vue`
+
+---
+
+## 16. Next Priorities (TODO)
 ### Recommended Order
-1. Frontend recovery after backend restarts — auto-reattach to active report/simulation state
-2. Report interview optimization — fewer questions, better single-platform mode
-3. Entity label deduplication in graph-to-persona pipeline
-4. Model performance tracking — latency/token counts per model per step
-5. DOCX and JSON seed data support
-6. Anthropic adapter — wrap Anthropic SDK behind OpenAI-compatible interface
+1. Deploy to 192.168.1.173 and verify all 4 fixes work end-to-end
+2. DOCX and JSON seed data support
+3. Anthropic adapter — wrap Anthropic SDK behind OpenAI-compatible interface
+4. Report interview performance — reduce agent interview latency further
+5. Entity label noise reduction — post-processing step in graph normalization
 
 ### Open Items
-- [ ] Frontend recovery after backend restarts
-- [ ] Report interview optimization
-- [ ] Entity label deduplication in graph-to-persona pipeline
-- [ ] Model performance tracking
+- [ ] Deploy Fixes 1-4 to remote and test
 - [ ] DOCX and JSON seed data support
 - [ ] Anthropic adapter
+- [ ] Report interview latency reduction
+- [ ] Entity label post-processing

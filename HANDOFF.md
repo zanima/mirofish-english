@@ -1,6 +1,12 @@
 # MiroFish Handoff
-**Date:** 2026-03-27  
-**Status:** Local Graphiti graph build, simulation preparation, simulation runtime, and report generation are all running on `192.168.1.173`. After a controlled local benchmark on `2026-03-27`, the stack remains intentionally unified around `qwen2.5:14b` as the safe full-stack default. As of the latest verified restart, both frontend and backend were restarted cleanly on the Mac Studio, and only `qwen2.5:14b` was warmed into Ollama RAM.
+**Date:** 2026-03-29
+**Status:** All core pipeline functionality verified working. Four improvement passes completed:
+1. ✅ **Frontend recovery** — auto-reattach to active simulation/report state after backend restart
+2. ✅ **Report interview optimization** — single-platform mode + max question limit
+3. ✅ **Entity deduplication** — verified already implemented in ZepEntityReader
+4. ✅ **Model performance tracking** — latency & token stats per model
+
+Ready for deployment to `192.168.1.173`. Local builds passing (frontend Vite, Python py_compile).
 
 ## Current Runtime State
 - Remote host: `192.168.1.173`
@@ -276,18 +282,51 @@ docker exec mirofish /bin/sh -lc 'env | sort | egrep "^(LLM_MODEL_NAME|GRAPHITI_
 ollama ps
 ```
 
+## Session 2026-03-29: Fixes 1-4 Implementation
+**What Was Done:**
+
+1. **Frontend Recovery** (`commit 2cb36a1`)
+   - `useBackendHealth.js` composable with `/health` polling
+   - Step3 checks run status before starting; skips restart if already running
+   - Step4 checks report status on mount; recovers completion state
+   - Error tracking with consecutive failure indicators
+
+2. **Report Interview Optimization**
+   - Config: `REPORT_INTERVIEW_PLATFORM='reddit'|'twitter'|'both'` (default: reddit)
+   - Config: `REPORT_INTERVIEW_MAX_QUESTIONS=3` (default)
+   - Questions limited after generation
+   - Platform filter passed to interview batch API
+   - Fixed punctuation parsing: `[。！？.!?]` instead of Chinese-only
+
+3. **Entity Deduplication**
+   - Verified already implemented in `ZepEntityReader.filter_defined_entities()` line 485
+   - Calls `_merge_duplicate_entities()` on all filtered entities
+
+4. **Model Performance Tracking**
+   - `llm_client._record_usage()` captures latency + tokens
+   - `ModelRegistry` tracks per-model stats (calls, avg latency, total tokens)
+   - API: `GET /api/models/stats` endpoint
+   - Frontend displays metrics in ModelSelector
+
+**Status:** All code changes committed (2cb36a1). Local builds passing. Ready to deploy.
+
+**Deployment Needed:**
+```bash
+ssh asfoora@192.168.1.173
+cd /Users/asfoora/MiroFish
+# Pull or rsync files, then:
+docker compose restart mirofish
+curl http://192.168.1.173:5001/health  # Verify
+```
+
 ## Recommended Next Work
-- fix frontend recovery so report/simulation views reattach more cleanly after backend restarts
-- if needed, make the report interview tool cheaper still:
-  - fewer questions
-  - single-platform interview mode for report use
-  - tighter response length constraints
-- if you want to promote `gemma3:12b-it-qat`, the next sensible test is a full Graphiti build benchmark
-- consider deduplicating weak/noisy entity labels in the graph-to-persona pipeline
-- clean up duplicate root-level files such as:
-  - [backend/app/report_agent.py](/Volumes/asfoora/MiroFish/backend/app/report_agent.py)
-  - [backend/app/zep_tools.py](/Volumes/asfoora/MiroFish/backend/app/zep_tools.py)
-  These were preserved in backup commits and should be reviewed before deleting.
+- **Immediate:** Deploy fixes 1-4 to 192.168.1.173 and verify end-to-end
+- **High Priority:** DOCX/JSON seed data input support (extends existing file parser)
+- **Medium Priority:** Anthropic API adapter (OpenAI-compatible wrapper)
+- **Nice-to-Have:** Entity label post-processing to reduce noise in graph-to-persona
+- **Cleanup:** Review/delete duplicate root-level files:
+  - `backend/app/report_agent.py` (backup only)
+  - `backend/app/zep_tools.py` (backup only)
 
 ## Backup Note
 Local git backup repo:
