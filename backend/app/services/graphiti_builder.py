@@ -38,6 +38,7 @@ except Exception:  # pragma: no cover - local non-Graphiti environments
             self.max_tokens = getattr(config, "max_tokens", 2048)
 
 from ..utils.logger import get_logger
+from ..utils.provider_compat import normalize_chat_completion_kwargs
 from ..utils.graph_normalization import (
     canonical_relation_key,
     canonicalize_entity_name,
@@ -244,6 +245,11 @@ class TolerantOpenAIClient(LLMClient):
                 "temperature": self.temperature,
                 "max_tokens": max_tokens or self.max_tokens,
             }
+            request_kwargs = normalize_chat_completion_kwargs(
+                model=model,
+                base_url=str(getattr(self.client, "base_url", "")),
+                kwargs=request_kwargs,
+            )
 
             response = await self.client.chat.completions.create(
                 **request_kwargs,

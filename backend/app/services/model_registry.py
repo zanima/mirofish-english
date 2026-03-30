@@ -106,7 +106,7 @@ PROVIDER_CATALOG: Dict[str, Dict[str, Any]] = {
     "kimi": {
         "name": "Kimi (Moonshot)",
         "type": "cloud",
-        "base_url": "https://api.moonshot.cn/v1",
+        "base_url": "https://api.moonshot.ai/v1",
         "default_key": None,
         "env_key": "KIMI_API_KEY",
         "models": [

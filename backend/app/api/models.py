@@ -7,6 +7,7 @@ from openai import OpenAI
 
 from . import models_bp
 from ..services.model_registry import ModelRegistry, ModelSelection, PROVIDER_CATALOG, STEP_NAMES
+from ..utils.provider_compat import normalize_chat_completion_kwargs
 from ..utils.logger import get_logger
 
 logger = get_logger('mirofish.api.models')
@@ -92,12 +93,17 @@ def test_model():
         import time
         client = OpenAI(api_key=api_key, base_url=base_url, timeout=30)
         t0 = time.time()
-        resp = client.chat.completions.create(
+        request_kwargs = normalize_chat_completion_kwargs(
             model=model_name,
-            messages=[{"role": "user", "content": "Say OK"}],
-            max_tokens=5,
-            temperature=0,
+            base_url=base_url,
+            kwargs={
+                "model": model_name,
+                "messages": [{"role": "user", "content": "Say OK"}],
+                "max_tokens": 5,
+                "temperature": 0,
+            },
         )
+        resp = client.chat.completions.create(**request_kwargs)
         latency_ms = int((time.time() - t0) * 1000)
         content = (resp.choices[0].message.content or "").strip()
         return jsonify({

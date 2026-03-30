@@ -12,6 +12,7 @@ from openai import OpenAI
 
 from ..config import Config
 from ..utils.logger import get_logger
+from ..utils.provider_compat import normalize_chat_completion_kwargs
 
 
 logger = get_logger('mirofish.llm')
@@ -75,6 +76,11 @@ class LLMClient:
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
+        kwargs = normalize_chat_completion_kwargs(
+            model=self.model,
+            base_url=self.base_url,
+            kwargs=kwargs,
+        )
         
         if response_format:
             kwargs["response_format"] = response_format

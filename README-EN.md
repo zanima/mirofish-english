@@ -24,6 +24,16 @@
 
 </div>
 
+## Derivative Notice
+
+This repository is an English-maintained derivative of the original `MiroFish` project by `666ghj`:
+
+- Upstream repository: `https://github.com/666ghj/MiroFish`
+- License: `AGPL-3.0`
+- Additional attribution details: [NOTICE.md](./NOTICE.md)
+
+This version preserves upstream attribution while including translation, maintenance, deployment work, and additional modifications.
+
 ## ⚡ Overview
 
 **MiroFish** is a next-generation AI prediction engine powered by multi-agent technology. By extracting seed information from the real world (such as breaking news, policy drafts, or financial signals), it automatically constructs a high-fidelity parallel digital world. Within this space, thousands of intelligent agents with independent personalities, long-term memory, and behavioral logic freely interact and undergo social evolution. You can inject variables dynamically from a "God's-eye view" to precisely deduce future trajectories — **rehearse the future in a digital sandbox, and win decisions after countless simulations**.

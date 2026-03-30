@@ -20,6 +20,7 @@ from zep_cloud.client import Zep
 
 from ..config import Config
 from ..utils.logger import get_logger
+from ..utils.provider_compat import normalize_chat_completion_kwargs
 from .zep_entity_reader import EntityNode, ZepEntityReader
 
 logger = get_logger('mirofish.oasis_profile')
@@ -532,17 +533,22 @@ class OasisProfileGenerator:
         
         for attempt in range(max_attempts):
             try:
-                response = self.client.chat.completions.create(
+                request_kwargs = normalize_chat_completion_kwargs(
                     model=self.model_name,
-                    messages=[
-                        {"role": "system", "content": self._get_system_prompt(is_individual)},
-                        {"role": "user", "content": prompt}
-                    ],
-                    response_format={"type": "json_object"},
-                    temperature=0.7 - (attempt * 0.1),
-                    max_tokens=Config.SIMULATION_PROFILE_MAX_TOKENS,
-                    timeout=Config.SIMULATION_LLM_TIMEOUT_SECONDS,
+                    base_url=self.base_url,
+                    kwargs={
+                        "model": self.model_name,
+                        "messages": [
+                            {"role": "system", "content": self._get_system_prompt(is_individual)},
+                            {"role": "user", "content": prompt}
+                        ],
+                        "response_format": {"type": "json_object"},
+                        "temperature": 0.7 - (attempt * 0.1),
+                        "max_tokens": Config.SIMULATION_PROFILE_MAX_TOKENS,
+                        "timeout": Config.SIMULATION_LLM_TIMEOUT_SECONDS,
+                    },
                 )
+                response = self.client.chat.completions.create(**request_kwargs)
                 
                 content = response.choices[0].message.content
                 if not content:
