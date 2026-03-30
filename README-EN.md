@@ -105,3 +105,4 @@ This repository remains under `AGPL-3.0`. If you deploy a modified public networ
 
 - Original project: `666ghj/MiroFish`
 - OASIS / CAMEL-AI for the simulation foundation used by the project
+- AI-assisted derivative maintenance and release work in this repository included both `Codex` and `Claude`

@@ -18,6 +18,8 @@ This version includes non-exhaustive derivative work such as:
 - UI and workflow improvements
 - ongoing maintenance and verification work
 
+AI-assisted engineering work in this derivative repository included both `Codex` and `Claude`, alongside human direction and review by the repository maintainer.
+
 ### Attribution guidance
 
 If this repository is published under another account, it should be presented as:
